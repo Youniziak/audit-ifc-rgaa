@@ -1,0 +1,47 @@
+{
+  "audit": {
+    "fichier_ifc": "test_house.ifc",
+    "auditeur": "Kévin (Youniziak)",
+    "date_terrain": "2026-04-30",
+    "appareil": "Télémètre laser parlant Bosch GLM 50C + niveau à bulle parlant"
+  },
+  "mesures": [
+    {
+      "global_id": "0Tif_$wI1FwAwq$OJt24I8",
+      "propriete": "OverallWidth",
+      "valeur_mesuree": 0.87,
+      "unite": "m",
+      "horodatage": "2026-04-30T14:23:11",
+      "tolerance": 0.005,
+      "appareil": "Télémètre laser Bosch GLM 50C",
+      "commentaire": "Porte d'entrée mesurée à hauteur de poignée. BIM annonce 1.00 m, écart de 13 cm."
+    },
+    {
+      "global_id": "0Tif_$wI1FwAwq$OJt24I8",
+      "propriete": "OverallHeight",
+      "valeur_mesuree": 2.18,
+      "unite": "m",
+      "horodatage": "2026-04-30T14:24:02",
+      "tolerance": 0.01,
+      "appareil": "Télémètre laser Bosch GLM 50C",
+      "commentaire": "Hauteur libre sous huisserie."
+    }
+  ],
+  "_documentation": {
+    "format": "Format de mesures terrain pour audit-ifc-rgaa.",
+    "champs_obligatoires": ["global_id", "propriete", "valeur_mesuree"],
+    "champs_optionnels": [
+      "unite (defaut m)",
+      "tolerance (defaut 0.01)",
+      "horodatage",
+      "appareil",
+      "commentaire"
+    ],
+    "proprietes_supportees": {
+      "IfcDoor": ["OverallWidth", "OverallHeight"],
+      "IfcRamp": ["Pset_RampCommon.Slope"],
+      "IfcStair": ["Pset_StairCommon.RiserHeight", "Pset_StairCommon.TreadLength"]
+    },
+    "note": "La premiere mesure illustre une porte conforme dans le BIM (1.00 m) mais non conforme en realite (0.87 m < 0.90 m). Cest exactement le type d ecart que les audits sur plan ratent systematiquement."
+  }
+}
