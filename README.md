@@ -63,13 +63,13 @@ tactile), interface visuelle secondaire mais présente.
 
 ```
         ┌─────────────────────────────────────────────────────────────┐
-        │                    Modèle BIM (.ifc)                         │
-        │              fourni par l'architecte                         │
+        │                    Modèle BIM (.ifc)                        │
+        │              fourni par l'architecte                        │
         └──────────────────────────┬──────────────────────────────────┘
                                    │
                                    ▼
         ┌─────────────────────────────────────────────────────────────┐
-        │  audit_ifc_rgaa.py                                           │
+        │  audit_ifc_rgaa.py                                          │
         │  Audit géométrique automatisé contre l'arrêté 8 déc 2014    │
         └──────────────────────────┬──────────────────────────────────┘
                                    │
@@ -88,10 +88,10 @@ tactile), interface visuelle secondaire mais présente.
                                    │
                                    ▼
         ┌─────────────────────────────────────────────────────────────┐
-        │  comparaison_terrain.py                                      │
+        │  comparaison_terrain.py                                     │
         │  Compare BIM ↔ terrain, double évaluation :                 │
-        │   1. Concordance avec le modèle                              │
-        │   2. Conformité réglementaire                                │
+        │   1. Concordance avec le modèle                             │
+        │   2. Conformité réglementaire                               │
         └──────────────────────────┬──────────────────────────────────┘
                                    │
                                    ▼
@@ -100,7 +100,7 @@ tactile), interface visuelle secondaire mais présente.
                                    ▼
         ┌─────────────────────────────────────────────────────────────┐
         │  Architecte / maître d'ouvrage (Revit, ArchiCAD…)           │
-        │  ouvre le BCF, voit chaque écart sur le modèle 3D            │
+        │  ouvre le BCF, voit chaque écart sur le modèle 3D           │
         └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -266,6 +266,22 @@ public d'accessibilité, attestations de conformité signées).
   license = {GPL-3.0-or-later}
 }
 ```
+## Conception et collaboration IA
+
+Ce projet a été conçu, dirigé et validé par Kévin (@Youniziak), auditeur en
+reconversion vers l'accessibilité numérique. L'angle, l'architecture
+logicielle, les choix de standards (IFC, BCF, WCAG), la philosophie blind-first
+des outils matériels et les décisions stratégiques sont les siens.
+
+Le code Python a été produit en pair-programming avec **Claude (Anthropic)**,
+utilisé comme accélérateur d'exécution à partir de spécifications détaillées.
+Cette transparence est volontaire : l'IA est un outil légitime de production
+quand elle est dirigée par une personne qui sait ce qu'elle veut construire et
+pourquoi.
+
+Les contributions externes (issues, pull requests, retours d'usage) sont
+bienvenues et seront traitées avec attention — voir
+[hardware/docs/CONTRIBUTING.md](hardware/docs/CONTRIBUTING.md) pour les modalités.
 
 ## Contact
 
