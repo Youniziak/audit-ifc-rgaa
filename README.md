@@ -234,7 +234,7 @@ Standards utilisés :
 Cet outil s'adresse :
 
 - Aux **auditeurs et auditrices d'accessibilité** professionnels
-  (certifiés Access42 ou équivalent), qu'ils soient ou non en situation
+  (certifiés ou en formation), qu'ils soient ou non en situation
   de handicap
 - Aux **maîtres d'ouvrage publics** qui veulent objectiver leurs
   contrôles Ad'AP (Agendas d'Accessibilité Programmée)
@@ -257,7 +257,7 @@ public d'accessibilité, attestations de conformité signées).
 
 ```bibtex
 @software{youniziak_audit_ifc_rgaa_2026,
-  author  = {Kévin (Youniziak)},
+  author  = {Kévin Chatellard (youniziak)uniziak)},
   title   = {audit-ifc-rgaa : pipeline ouvert d'audit d'accessibilité
              du bâti depuis le BIM},
   year    = {2026},
