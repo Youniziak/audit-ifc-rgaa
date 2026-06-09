@@ -1,292 +1,292 @@
 # audit-ifc-rgaa
 
-> **Audit d'accessibilité du bâti, par les auditeurs concernés.**
+> **Built-environment accessibility auditing, by the auditors directly concerned.**
 >
-> Pipeline ouvert qui va du modèle BIM (IFC) au rapport d'écarts BCF
-> échangeable avec les architectes, en passant par des outils physiques
-> de mesure pensés *blind-first*.
+> An open pipeline that goes from the BIM model (IFC) to a BCF discrepancy
+> report exchangeable with architects, by way of physical measurement tools
+> designed blind-first.
 
-[![Licence code : GPL v3](https://img.shields.io/badge/Code-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Licence hardware : CERN-OHL-P v2](https://img.shields.io/badge/Hardware-CERN--OHL--P_v2-orange.svg)](https://cern-ohl.web.cern.ch/)
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-green.svg)](https://www.python.org/)
-[![Statut : v0.3 fonctionnelle](https://img.shields.io/badge/Statut-v0.3_fonctionnelle-brightgreen.svg)]()
+[
 
----
+![Code license: GPL v3](https://img.shields.io/badge/Code-GPLv3-blue.svg)
 
-## Le constat
+](LICENSE)
+[
 
-L'audit d'accessibilité du bâti repose aujourd'hui sur des plans
-graphiques et des contrôles à l'œil. Deux problèmes en découlent :
+![Hardware license: CERN-OHL-P v2](https://img.shields.io/badge/Hardware-CERN--OHL--P%20v2-orange.svg)
 
-1. **Les auditeurs en situation de handicap visuel** — qui sont
-   pourtant les premiers concernés par les enjeux d'accessibilité — n'ont
-   pas d'accès direct à la donnée.
-2. **Les écarts entre BIM et réel** ne sont jamais systématiquement
-   vérifiés. Une rampe annoncée à 4,8 % peut faire 6,3 % sur le chantier,
-   personne ne mesure, tout le monde signe.
+](hardware/)
+[
 
-Pourtant **toute la donnée nécessaire existe déjà dans le BIM** au format
-IFC ouvert (ISO 16739). Il suffit de la rendre exploitable et de la
-confronter à la réalité.
+![Python 3.9+](https://img.shields.io/badge/Python-3.9+-green.svg)
 
-## La proposition
+](https://www.python.org/)
+[
 
-`audit-ifc-rgaa` est un **pipeline complet en deux volets** :
+![Status: v0.3 functional](https://img.shields.io/badge/Status-v0.3%20functional-success.svg)
 
-### Volet logiciel — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`
+](CHANGELOG.md)
 
-- Parse le fichier IFC d'un projet
-- Vérifie automatiquement la conformité aux exigences de **l'arrêté du
-  8 décembre 2014** (portes, escaliers, rampes, couloirs, sanitaires)
-- Génère un **rapport Markdown structuré** lisible par lecteur d'écran
-- Compare les valeurs déclarées aux **mesures terrain** (fichier JSON)
-- Exporte les écarts au format **BCF 2.1** standard, échangeable avec
-  Revit, ArchiCAD, BIMcollab, Solibri, BlenderBIM
+> 🇫🇷 **Version française : [README.fr.md](README.fr.md)**
+>
+> ⚠️ **Regulatory scope:** the compliance rules implemented here are based on
+> **French regulations** (arrêté of 8 December 2014, RGAA). The pipeline
+> architecture is reusable and can be adapted to any country's accessibility
+> standards.
 
-### Volet matériel — dossier `hardware/`
+## The problem
 
-- **Mètre tactile à crans RGAA** : règle imprimable 3D dont les seuils
-  réglementaires sont matérialisés par des encoches tactiles distinctes
-- **Télémètre laser vocal** : annonce vocale en français, retour
-  vibratoire, ~32 € en composants
-- **Inclinomètre vocal continu** : mesure dynamique de pente avec alertes
-  sonores aux seuils, ~29 €
-- **Colorimètre WCAG bâti** : mesure objective du contraste de
-  signalétique, ~38 € — un dispositif dont aucun équivalent commercial
-  n'existe à ce jour
+Built-environment accessibility auditing today relies on graphical floor plans
+and visual inspection. Two problems follow from this:
 
-Tous les outils matériels sont conçus selon le principe **blind-first
-universal design** : interface principale non visuelle (audio, vibratoire,
-tactile), interface visuelle secondaire mais présente.
+1. **Auditors with visual impairments** — who are the people most directly
+   concerned by accessibility issues — have no direct access to the data.
+2. **Discrepancies between the BIM model and reality are never systematically
+   verified.** A ramp declared at 4.8% may actually be 6.3% on site; nobody
+   measures it, everybody signs off.
 
-## Pipeline complet
+Yet all the necessary data already exists in the BIM model, in the open IFC
+format (ISO 16739). It simply needs to be made usable and checked against
+reality.
 
-```
-        ┌─────────────────────────────────────────────────────────────┐
-        │                    Modèle BIM (.ifc)                        │
-        │              fourni par l'architecte                        │
-        └──────────────────────────┬──────────────────────────────────┘
-                                   │
-                                   ▼
-        ┌─────────────────────────────────────────────────────────────┐
-        │  audit_ifc_rgaa.py                                          │
-        │  Audit géométrique automatisé contre l'arrêté 8 déc 2014    │
-        └──────────────────────────┬──────────────────────────────────┘
-                                   │
-                                   ▼
-              Rapport conformité théorique (Markdown accessible)
-                          + liste des éléments à mesurer (GlobalId)
-                                   │
-                                   ▼
-        ┌─────────────────────────────────────────────────────────────┐
-        │   Outils physiques blind-first sur site                     │
-        │   (télémètre, inclinomètre, colorimètre, mètre tactile)     │
-        └──────────────────────────┬──────────────────────────────────┘
-                                   │
-                                   ▼
-                     mesures.json (horodatées, signées)
-                                   │
-                                   ▼
-        ┌─────────────────────────────────────────────────────────────┐
-        │  comparaison_terrain.py                                     │
-        │  Compare BIM ↔ terrain, double évaluation :                 │
-        │   1. Concordance avec le modèle                             │
-        │   2. Conformité réglementaire                               │
-        └──────────────────────────┬──────────────────────────────────┘
-                                   │
-                                   ▼
-              Rapport BIM ↔ terrain + fichier BCF 2.1 (.bcfzip)
-                                   │
-                                   ▼
-        ┌─────────────────────────────────────────────────────────────┐
-        │  Architecte / maître d'ouvrage (Revit, ArchiCAD…)           │
-        │  ouvre le BCF, voit chaque écart sur le modèle 3D           │
-        └─────────────────────────────────────────────────────────────┘
-```
+## The proposal
+
+`audit-ifc-rgaa` is a complete pipeline with two parts:
+
+### Software part — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`
+
+- Parses a project's IFC file
+- Automatically checks compliance with the requirements of the French arrêté of
+  8 December 2014 (doors, stairs, ramps, corridors, sanitary facilities)
+- Generates a structured Markdown report readable by screen readers
+- Compares declared values against on-site measurements (JSON file)
+- Exports discrepancies in the standard BCF 2.1 format, exchangeable with Revit,
+  ArchiCAD, BIMcollab, Solibri, BlenderBIM
+
+### Hardware part — the `hardware/` folder
+
+- **RGAA tactile ruler:** a 3D-printable ruler whose regulatory thresholds are
+  marked by distinct tactile notches
+- **Voice laser rangefinder:** spoken output in French, vibration feedback,
+  ~€32 in components
+- **Continuous voice inclinometer:** dynamic slope measurement with audible
+  alerts at thresholds, ~€29
+- **WCAG built-environment colorimeter:** objective measurement of signage
+  contrast, ~€38 — a device with no commercial equivalent to date
+
+All hardware tools follow the **blind-first universal design** principle: the
+primary interface is non-visual (audio, vibration, tactile), with a secondary
+but present visual interface.
+
+## Complete pipeline
+┌─────────────────────────────────────────────────────────────┐
+    │                    BIM model (.ifc)                          │
+    │              provided by the architect                       │
+    └──────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  audit_ifc_rgaa.py                                           │
+    │  Automated geometric audit against the arrêté of 8 Dec 2014 │
+    └──────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+          Theoretical compliance report (accessible Markdown)
+                      + list of elements to measure (GlobalId)
+                               │
+                               ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │   Blind-first physical tools on site                        │
+    │   (rangefinder, inclinometer, colorimeter, tactile ruler)   │
+    └──────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+                 measurements.json (timestamped, signed)
+                               │
+                               ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  comparaison_terrain.py                                      │
+    │  Compares BIM ↔ on-site, dual evaluation:                   │
+    │   1. Concordance with the model                              │
+    │   2. Regulatory compliance                                   │
+    └──────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+          BIM ↔ on-site report + BCF 2.1 file (.bcfzip)
+                               │
+                               ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  Architect / project owner (Revit, ArchiCAD…)               │
+    │  opens the BCF, sees each discrepancy on the 3D model       │
+    └─────────────────────────────────────────────────────────────┘
 
 ## Installation
-
-```bash
-git clone https://github.com/Youniziak/audit-ifc-rgaa.git
+clone https://github.com/Youniziak/audit-ifc-rgaa.git
 cd audit-ifc-rgaa
 pip install -r requirements.txt
-```
 
-Dépendance unique : [IfcOpenShell](https://ifcopenshell.org/) (LGPL).
+Single dependency: IfcOpenShell (LGPL).
 
-## Utilisation rapide
+## Quick start
 
-### 1. Audit conformité depuis le BIM seul
+### 1. Compliance audit from the BIM model alone
 
-```bash
 python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc
-```
 
-Génère `exemples/test_erp_avec_espaces_audit.md` listant toutes les
-non-conformités détectées avec sévérité et article réglementaire.
+Generates `exemples/test_erp_avec_espaces_audit.md` listing all detected
+non-compliances with severity and regulatory article.
 
-### 2. Comparaison BIM ↔ terrain + export BCF
+### 2. BIM ↔ on-site comparison + BCF export
 
-```bash
-python3 comparaison_terrain.py exemples/test_house.ifc \
-                               exemples/mesures_exemple.json \
-                               --bcf retours_architecte.bcfzip
-```
+python3 comparaison_terrain.py exemples/test_house.ifc 
+exemples/mesures_exemple.json 
+--bcf retours_architecte.bcfzip
 
-Produit le rapport d'écarts en Markdown et un fichier `.bcfzip` à
-transmettre directement à l'architecte.
+Produces the discrepancy report in Markdown and a `.bcfzip` file to hand
+directly to the architect.
 
-### 3. Régénérer le fichier IFC de test
-
-```bash
+### 3. Regenerate the test IFC file
 python3 generer_exemple_espaces.py
-```
 
-## Ce qui est vérifié (v0.3)
+## What is checked (v0.3)
 
-| Élément | Contrôle | Article |
-|---------|----------|---------|
-| Portes | Largeur ≥ 0,80 m (locaux) ou 0,90 m (principale ERP) | Art. 10 |
-| Portes | Hauteur libre ≥ 2,00 m | Art. 10 |
-| Escaliers | Giron ≥ 0,28 m | Art. 7-1 |
-| Escaliers | Hauteur de marche ≤ 0,16 m | Art. 7-1 |
-| Rampes | Pente ≤ 5 % normale, 8 % tolérée sur 2 m | Art. 7-2 |
-| Couloirs | Largeur ≥ 1,40 m (1,20 m en rétrécissement ponctuel) | Art. 6 |
-| Sanitaires | Plus petite dimension ≥ 1,50 m (rotation Ø 1,50 m) | Art. 12 |
-| Sanitaires | Surface ≥ 3,00 m² (recommandation) | Art. 12 |
+| Element | Check | Article |
+| --- | --- | --- |
+| Doors | Width ≥ 0.80 m (rooms) or 0.90 m (main ERP) | Art. 10 |
+| Doors | Clear height ≥ 2.00 m | Art. 10 |
+| Stairs | Tread depth ≥ 0.28 m | Art. 7-1 |
+| Stairs | Riser height ≤ 0.16 m | Art. 7-1 |
+| Ramps | Slope ≤ 5% normal, 8% tolerated over 2 m | Art. 7-2 |
+| Corridors | Width ≥ 1.40 m (1.20 m at a localized narrowing) | Art. 6 |
+| Sanitary | Smallest dimension ≥ 1.50 m (Ø 1.50 m turning circle) | Art. 12 |
+| Sanitary | Area ≥ 3.00 m² (recommendation) | Art. 12 |
 
-## Ce qui n'est pas (encore) vérifié
+*(Articles refer to the French arrêté of 8 December 2014.)*
 
-L'audit automatisé ne couvre pas — et ne couvrira jamais entièrement :
+## What is not (yet) checked
 
-- Contrastes visuels de signalétique → outil dédié `colorimetre-wcag`
-- Bandes podotactiles d'éveil à la vigilance (NF P98-351)
-- Mains courantes (présence, hauteur, prolongement)
-- Sonorisation des feux et ascenseurs
-- Boucles à induction magnétique
-- Qualité d'usage perçue par les personnes en situation de handicap
+Automated auditing does not cover — and will never fully cover:
 
-Ces éléments figurent explicitement dans la section *Limites du contrôle
-automatisé* de chaque rapport généré.
+- Visual signage contrast → dedicated tool `colorimetre-wcag`
+- Tactile warning surfaces (NF P98-351)
+- Handrails (presence, height, extension)
+- Audible signals for traffic lights and elevators
+- Magnetic induction loops
+- Quality of use as experienced by people with disabilities
 
-## Structure du dépôt
+These items appear in the *Limits of automated checking* section of every
+generated report.
 
-```
+## Repository structure
 audit-ifc-rgaa/
-├── README.md                    Ce document
-├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.3.0)
-├── LICENSE                      GPL-3.0 pour le code
-├── requirements.txt             Dépendances Python
+├── README.md                    This document (English)
+├── README.fr.md                 French version
+├── CHANGELOG.md                 Version log
+├── VERSION                      Current version (0.3.0)
+├── LICENSE                      GPL-3.0 for the code
+├── requirements.txt             Python dependencies
 │
-├── audit_ifc_rgaa.py            Module principal — audit conformité IFC
-├── comparaison_terrain.py       Comparaison BIM ↔ mesures terrain
-├── bcf_export.py                Génération de fichiers BCF 2.1
-├── generer_exemple_espaces.py   Helper de génération d'IFC de test
+├── audit_ifc_rgaa.py            Main module — IFC compliance audit
+├── comparaison_terrain.py       BIM ↔ on-site measurement comparison
+├── bcf_export.py                BCF 2.1 file generation
+├── generer_exemple_espaces.py   Test IFC generation helper
 │
-├── exemples/                    Fichiers de démonstration
-│   ├── test_house.ifc           Maison simple (1 porte)
-│   ├── test_erp_avec_espaces.ifc  ERP fictif (couloirs + sanitaires)
-│   └── mesures_exemple.json     Format des mesures terrain
+├── exemples/                    Demonstration files
+│   ├── test_house.ifc           Simple house (1 door)
+│   ├── test_erp_avec_espaces.ifc  Fictional ERP (corridors + sanitary)
+│   └── mesures_exemple.json     On-site measurement format
 │
-└── hardware/                    Outils physiques blind-first
-    ├── README.md                Index général
-    ├── docs/
-    │   ├── PHILOSOPHIE.md       Démarche blind-first universal design
-    │   └── CONTRIBUTING.md      Guide de contribution
-    ├── metre-tactile-rgaa/      Règle imprimable 3D à encoches
-    ├── telemetre-vocal/         Télémètre laser vocal ESP32-S3
-    ├── inclinometre-vocal/      Inclinomètre vocal continu ESP32-S3
-    └── colorimetre-wcag/        Colorimètre WCAG bâti ESP32-S3
-```
+└── hardware/                    Blind-first physical tools
+├── README.md                General index
+├── docs/
+│   ├── PHILOSOPHIE.md       Blind-first universal design approach
+│   └── CONTRIBUTING.md      Contribution guide
+├── metre-tactile-rgaa/      3D-printable notched ruler
+├── telemetre-vocal/         ESP32-S3 voice laser rangefinder
+├── inclinometre-vocal/      ESP32-S3 continuous voice inclinometer
+└── colorimetre-wcag/        ESP32-S3 WCAG built-environment colorimeter
 
-## Standards et licences
+## Standards and licenses
 
-| Composant | Licence |
-|-----------|---------|
-| Code Python | GPL-3.0-or-later |
-| Conception matérielle (PCB, schémas, modèles 3D) | CERN-OHL-P v2 |
-| Firmware embarqué | GPL-3.0-or-later |
+| Component | License |
+| --- | --- |
+| Python code | GPL 3.0 or later |
+| Hardware design (PCB, schematics, 3D models) | CERN-OHL-P v2 |
+| Embedded firmware | GPL 3.0 or later |
 | Documentation | CC BY-SA 4.0 |
 
-Standards utilisés :
+Standards used:
 
-- **IFC 2x3 / IFC4 / IFC4x3** — buildingSMART / ISO 16739
-- **BCF 2.1** — buildingSMART, format de collaboration BIM
-- **WCAG 2.1** — W3C, ratio de contraste applicable au bâti
-- **Arrêté du 8 décembre 2014** — accessibilité des ERP existants
-- **Arrêté du 20 avril 2017** — accessibilité des ERP neufs
-- **Loi du 11 février 2005** — égalité des droits et des chances
+- IFC 2x3 / IFC4 / IFC4x3 — buildingSMART / ISO 16739
+- BCF 2.1 — buildingSMART, BIM collaboration format
+- WCAG 2.1 — W3C, contrast ratio applicable to the built environment
+- Arrêté of 8 December 2014 — accessibility of existing public buildings (ERP), France
+- Arrêté of 20 April 2017 — accessibility of new public buildings (ERP), France
+- Law of 11 February 2005 — equal rights and opportunities, France
 
-## Feuille de route
+## Roadmap
 
-- [x] **v0.1** — Audit géométrique de base : portes, escaliers, rampes
-- [x] **v0.2** — Circulations horizontales et sanitaires accessibles
-- [x] **v0.3** — Comparaison BIM ↔ terrain + export BCF 2.1
-- [ ] **v0.4** — Espaces de manœuvre, ascenseurs accessibles
-- [ ] **v0.5** — Export PDF accessible (PDF/UA, ISO 14289)
-- [ ] **v0.6** — Génération automatique de plans tactiles (STL)
-- [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
-- [ ] **v1.x** — Premier prototype matériel publié (mètre tactile)
+- [x] v0.1 — Basic geometric audit: doors, stairs, ramps
+- [x] v0.2 — Horizontal circulation and accessible sanitary facilities
+- [x] v0.3 — BIM ↔ on-site comparison + BCF 2.1 export
+- [ ] v0.4 — Maneuvering spaces, accessible elevators
+- [ ] v0.5 — Accessible PDF export (PDF/UA, ISO 14289)
+- [ ] v0.6 — Automatic tactile floor-plan generation (STL)
+- [ ] v1.0 — IndoorGML graphs for accessible indoor guidance
+- [ ] v1.x — First published hardware prototype (tactile ruler)
 
-## Pour qui
+## Who it is for
 
-Cet outil s'adresse :
+This tool is aimed at:
 
-- Aux **auditeurs et auditrices d'accessibilité** professionnels
-  (certifiés ou en formation), qu'ils soient ou non en situation
-  de handicap
-- Aux **maîtres d'ouvrage publics** qui veulent objectiver leurs
-  contrôles Ad'AP (Agendas d'Accessibilité Programmée)
-- Aux **architectes et bureaux d'études** qui souhaitent intégrer la
-  vérification d'accessibilité dans leurs workflows BIM
-- Aux **bureaux de contrôle technique** (Apave, Bureau Veritas, Socotec)
-  qui peuvent y trouver une brique automatisable
-- Aux **associations** (APF France handicap, Valentin Haüy, FAF…)
-  qui ont besoin de données opposables
-- Aux **étudiants et formateurs** en accessibilité, BIM, architecture
+- **Professional accessibility auditors** (certified or in training), whether or
+  not they have a disability
+- **Public project owners** who want to make their Ad'AP (programmed
+  accessibility agenda) checks objective
+- **Architects and engineering offices** who want to integrate accessibility
+  verification into their BIM workflows
+- **Technical inspection bodies** (Apave, Bureau Veritas, Socotec) who may find
+  an automatable building block here
+- **Associations** (APF France handicap, Valentin Haüy, FAF…) who need
+  enforceable data
+- **Students and trainers** in accessibility, BIM, architecture
 
-## Avertissement
+## Disclaimer
 
-Cet outil est fourni à des fins d'aide à l'audit et de sensibilisation à
-l'accessibilité. Il ne se substitue pas à l'expertise d'un auditeur
-certifié et aux contrôles réglementaires obligatoires (Ad'AP, registre
-public d'accessibilité, attestations de conformité signées).
+This tool is provided as an aid to auditing and for accessibility awareness. It
+is a complement to human expertise, not a substitute for it, and does not
+replace the certified auditor's expertise or the mandatory regulatory checks
+(Ad'AP, public accessibility register, signed compliance certificates).
 
-## Citer ce projet
+## Cite this project
 
 ```bibtex
 @software{youniziak_audit_ifc_rgaa_2026,
-  author  = {Kévin Chatellard (youniziak)uniziak)},
-  title   = {audit-ifc-rgaa : pipeline ouvert d'audit d'accessibilité
-             du bâti depuis le BIM},
+  author  = {Chatellard, Kévin},
+  title   = {audit-ifc-rgaa: an open pipeline for built-environment
+             accessibility auditing from BIM},
   year    = {2026},
   version = {0.3.0},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }
-```
-## Conception et collaboration IA
 
-Ce projet a été conçu, dirigé et validé par Kévin (@Youniziak), auditeur en
-reconversion vers l'accessibilité numérique. L'angle, l'architecture
-logicielle, les choix de standards (IFC, BCF, WCAG), la philosophie blind-first
-des outils matériels et les décisions stratégiques sont les siens.
+Design and AI collaboration
+This project was conceived, directed and validated by Kévin (@Youniziak), an
+auditor retraining toward digital accessibility. The angle, the software
+architecture, the choice of standards (IFC, BCF, WCAG), the blind-first
+philosophy of the hardware tools and the strategic decisions are his own.
+The Python code was produced in pair-programming with Claude (Anthropic),
+used as an execution accelerator from detailed specifications. This transparency
+is deliberate: AI is a legitimate production tool when directed by someone who
+knows what they want to build and why.
+External contributions (issues, pull requests, usage feedback) are welcome and
+will be handled with care — see
+hardware/docs/CONTRIBUTING.md for details.
+Contact
+GitHub: @Youniziak
+Issues: to report a bug, suggest a feature, or open a technical discussion
+For sensitive matters (sponsoring, partnership, press): see the GitHub profile
 
-Le code Python a été produit en pair-programming avec **Claude (Anthropic)**,
-utilisé comme accélérateur d'exécution à partir de spécifications détaillées.
-Cette transparence est volontaire : l'IA est un outil légitime de production
-quand elle est dirigée par une personne qui sait ce qu'elle veut construire et
-pourquoi.
 
-Les contributions externes (issues, pull requests, retours d'usage) sont
-bienvenues et seront traitées avec attention — voir
-[hardware/docs/CONTRIBUTING.md](hardware/docs/CONTRIBUTING.md) pour les modalités.
 
-## Contact
-
-- GitHub : [@Youniziak](https://github.com/Youniziak)
-- Issues : pour signaler un bug, proposer une fonctionnalité, ouvrir une
-  discussion technique
-- Pour les sujets sensibles (sponsoring, partenariat, presse) : voir le
-  profil GitHub
