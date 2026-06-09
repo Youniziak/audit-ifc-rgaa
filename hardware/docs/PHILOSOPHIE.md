@@ -1,131 +1,109 @@
-# Philosophie — blind-first universal design
+# Philosophy — blind-first universal design
 
-## Le constat
+> 🇫🇷 **Version française : [PHILOSOPHIE.md](PHILOSOPHIE.md)**
 
-Les outils d'audit d'accessibilité du bâti existants — télémètres, niveaux,
-décamètres, colorimètres — sont conçus par des personnes voyantes pour des
-personnes voyantes. Quand un auditeur en situation de handicap visuel souhaite
-les utiliser, deux options s'offrent à lui :
+## The problem
 
-1. **Ne pas les utiliser** et déléguer la mesure à un binôme voyant
-2. **Les adapter** avec des moyens de fortune (synthèses vocales tierces,
-   apps OCR sur l'écran de l'instrument, etc.)
+Existing built-environment accessibility auditing tools — rangefinders, levels,
+measuring tapes, colorimeters — are designed by sighted people for sighted
+people. When an auditor with a visual impairment wants to use them, two options
+are available:
 
-Aucune de ces options n'est satisfaisante. La première dépossède l'auditeur
-de la donnée brute. La seconde introduit une couche de bricolage qui dégrade
-la fiabilité.
+1. **Not use them** and delegate measurement to a sighted partner
+2. **Adapt them** with makeshift means (third-party voice synthesis, OCR apps
+   pointed at the instrument's screen, etc.)
 
-## La proposition
+Neither option is satisfactory. The first dispossesses the auditor of the raw
+data. The second introduces a layer of improvisation that degrades reliability.
 
-Concevoir des outils dont l'interface principale est **non visuelle** et qui
-produisent des mesures :
+## The proposal
 
-- **Annoncées vocalement** (synthèse embarquée, sans dépendance au cloud)
-- **Avec retour vibratoire** indiquant les seuils réglementaires
-- **Horodatées et signées** pour traçabilité et opposabilité
-- **Exportables** vers le pipeline `audit-ifc-rgaa` (JSON consommé par
+Design tools whose primary interface is **non-visual** and which produce
+measurements that are:
+
+- **Announced by voice** (embedded synthesis, no cloud dependency)
+- **With vibration feedback** indicating regulatory thresholds
+- **Timestamped and signed** for traceability and enforceability
+- **Exportable** to the `audit-ifc-rgaa` pipeline (JSON consumed by
   `comparaison_terrain.py`)
 
-Ces outils restent utilisables par les voyants — mais l'inverse n'est pas
-vrai. C'est une asymétrie volontaire et signifiante.
+These tools remain usable by sighted people — but the reverse is not true. This
+is a deliberate and meaningful asymmetry.
 
-## Pourquoi pas adapter l'existant
+## Why not adapt existing tools
 
-Trois raisons pratiques :
+Three practical reasons:
 
-1. **Dépendance** : un auditeur DV ne peut pas dépendre d'une chaîne dont
-   chaque maillon est susceptible de tomber en panne (Bluetooth qui se
-   déconnecte, app OCR qui rate un chiffre).
-2. **Fiabilité forensique** : pour qu'une mesure soit opposable en cas de
-   litige Ad'AP, elle doit être tracée par l'instrument lui-même, pas
-   reconstituée à partir d'un OCR.
-3. **Économie** : un télémètre laser parlant industriel coûte 200–400 €. Un
-   équivalent open hardware coûte 25 € en composants. La barrière d'accès
-   doit être basse.
+1. **Dependency:** a visually impaired auditor cannot depend on a chain whose
+   every link is liable to fail (Bluetooth disconnecting, an OCR app misreading
+   a digit).
+2. **Forensic reliability:** for a measurement to be enforceable in an Ad'AP
+   dispute, it must be recorded by the instrument itself, not reconstructed from
+   OCR.
+3. **Affordability:** an industrial talking laser rangefinder costs €200–400. An
+   open-hardware equivalent costs €25 in components. The barrier to entry must
+   be low.
 
-## Pourquoi pas attendre les industriels
+## Why not wait for the industry
 
-Parce qu'ils ne font pas. Parce que le marché de l'auditeur DV est trop
-petit pour qu'ils s'y intéressent. Et parce que même s'ils s'y intéressaient,
-les solutions seraient propriétaires, fermées, non interopérables avec un
-pipeline d'audit BIM ouvert comme `audit-ifc-rgaa`.
+Because they don't build it. Because the market of visually impaired auditors is
+too small to interest them. And because even if it did interest them, the
+solutions would be proprietary, closed, and not interoperable with an open BIM
+audit pipeline like `audit-ifc-rgaa`.
 
-L'open hardware comble exactement ce trou.
+Open hardware fills exactly this gap.
 
-## Principes de conception communs
+## Common design principles
 
-Tous les outils du dossier `hardware/` partagent les principes suivants :
+All tools in the `hardware/` folder share the following principles:
 
-### Interface utilisateur
+### User interface
 
-- **Bouton physique principal large** (≥ 15 mm) facilement repérable au
-  toucher, distinct des autres boutons par sa forme ou sa position
-- **Aucune information critique en visuel uniquement** : tout ce qui est
-  affiché à l'écran est aussi annoncé en audio
-- **Retours vibratoires distincts** pour les seuils réglementaires
-  (par exemple : 1 vibration courte = conforme, 3 vibrations longues = non
-  conforme bloquante)
-- **Voix neuronale française** locale (Piper TTS, fr_FR-siwis-medium ou
-  équivalent) embarquée — pas de dépendance réseau
+- **Large primary physical button** (≥ 15 mm) easily found by touch, distinct
+  from other buttons by its shape or position
+- **No critical information in visual form only:** anything shown on screen is
+  also announced in audio
+- **Distinct vibration feedback** for regulatory thresholds (for example: 1
+  short vibration = compliant, 3 long vibrations = blocking non-compliance)
+- **Local French neural voice** (Piper TTS, fr_FR-siwis-medium or equivalent)
+  embedded — no network dependency
 
-### Connectivité
+### Connectivity
 
-- **USB-C** pour alimentation et transfert de données
-- **Bluetooth Low Energy** optionnel pour appairage avec smartphone
-- **Stockage local** des mesures (carte microSD ou flash interne) avec
-  export JSON conforme au format `mesures_exemple.json`
+- **USB-C** for power and data transfer
+- **Bluetooth Low Energy** optional, for pairing with a smartphone
+- **Local storage** of measurements (microSD card or internal flash) with JSON
+  export conforming to the `mesures_exemple.json` format
 
-### Mécanique
+### Mechanics
 
-- **Boîtier imprimable 3D** (PETG ou PLA, ne nécessitant pas de matériel
-  exotique) avec textures tactiles différenciantes
-- **Préhension** adaptée à l'usage à une main, l'autre main étant souvent
-  occupée par la canne blanche ou un point de repère mural
+- **3D-printable enclosure** (PETG or PLA, requiring no exotic material) with
+  differentiating tactile textures
+- **Grip** adapted for one-handed use, the other hand often being occupied by
+  the white cane or a wall reference point
 
-### Énergie
+### Power
 
-- **Batterie LiPo** rechargeable USB-C, autonomie minimale 8 h d'usage
-  intensif
-- **LED d'état** doublée d'un retour audio périodique signalant l'autonomie
-  restante
+- **Rechargeable LiPo battery**, USB-C, minimum 8 h of intensive-use autonomy
+- **Status LED** paired with periodic audio feedback indicating remaining
+  battery life
 
-### Identité
+### Identity
 
-- **Numéro de série** unique gravé physiquement et stocké en EEPROM
-- **Horodatage cryptographique** (RFC 3161 ou hash SHA-256 chaîné) pour
-  chaque mesure exportée — opposabilité juridique
+- **Unique serial number** physically engraved and stored in EEPROM
+- **Cryptographic timestamp** (RFC 3161 or chained SHA-256 hash) for each
+  exported measurement — legal enforceability
 
-## Réutilisation
+## Reuse
 
-Toute personne, association ou entreprise est autorisée à fabriquer ces
-outils selon les fichiers de conception fournis. Les seules contraintes :
+Any individual, association or company is authorized to manufacture these tools
+according to the provided design files. The only constraints:
 
-- Mentionner l'origine du design (CERN-OHL-P v2 oblige à transmettre les
-  fichiers de conception modifiés)
-- Ne pas utiliser le nom de marque déposée (Exylia Project) sans accord
+- Credit the origin of the design (CERN-OHL-P v2 requires passing on modified
+  design files)
+- Do not use the registered trademark name (Exylia Project) without agreement
 
-## Lien avec la stratégie globale
+## Link with the overall strategy
 
-Ces dispositifs ne sont pas une fin en soi. Ils sont la **brique terrain**
-d'un pipeline plus large :
-
-```
-modèle BIM (.ifc)
-       │
-       ▼
-audit_ifc_rgaa.py  ────► rapport de conformité théorique
-       │
-       │ (liste des éléments à mesurer avec GlobalId)
-       ▼
-[ outils hardware blind-first sur site ]
-       │
-       │ (mesures JSON horodatées)
-       ▼
-comparaison_terrain.py  ────► rapport BIM ↔ terrain + BCF
-       │
-       ▼
-architecte / maître d'ouvrage  ────► corrections
-```
-
-Sans le hardware, on ne peut pas fermer la boucle. Sans le software, le
-hardware n'a personne à qui parler.
+These devices are not an end in themselves. They are the **field building
+block** of a larger pipeline:
