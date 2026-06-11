@@ -6,6 +6,8 @@
 > échangeable avec les architectes, en passant par des outils physiques
 > de mesure pensés *blind-first*.
 
+🖥️ **[Voir la démo terminal en direct](https://youniziak.github.io/audit-ifc-rgaa/demo_terminal.html)** — animée et accessible au lecteur d’écran.
+
 [![Licence code : GPL v3](https://img.shields.io/badge/Code-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Licence hardware : CERN-OHL-P v2](https://img.shields.io/badge/Hardware-CERN--OHL--P_v2-orange.svg)](https://cern-ohl.web.cern.ch/)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-green.svg)](https://www.python.org/)

@@ -6,6 +6,8 @@
 > report exchangeable with architects, by way of physical measurement tools
 > designed blind-first.
 
+🖥️ **[Watch the live terminal demo](https://youniziak.github.io/audit-ifc-rgaa/demo_terminal.html)** — animated, screen-reader friendly.
+
 [
 
 ![Code license: GPL v3](https://img.shields.io/badge/Code-GPLv3-blue.svg)
