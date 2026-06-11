@@ -257,7 +257,7 @@ public d'accessibilité, attestations de conformité signées).
 
 ```bibtex
 @software{youniziak_audit_ifc_rgaa_2026,
-  author  = {Kévin Chatellard (youniziak)uniziak)},
+  author  = {Chatellard, Kévin},
   title   = {audit-ifc-rgaa : pipeline ouvert d'audit d'accessibilité
              du bâti depuis le BIM},
   year    = {2026},
