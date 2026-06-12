@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>audit-ifc-rgaa — L'audit d'accessibilité du bâti, par les auditeurs concernés</title>
+<meta name="description" content="Pipeline open source : du modèle BIM (IFC) au rapport d'audit accessible au lecteur d'écran, jusqu'à l'export BCF pour les architectes. Conçu blind-first.">
+<style>
+  :root {
+    --paper: #f7f9fa;
+    --ink: #10181f;
+    --ink-soft: #3d4852;
+    --safety: #ffc400;
+    --safety-ink: #181200;
+    --blueprint: #14507e;
+    --rule: #c9d2d8;
+    --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0e1116;
+      --ink: #e8edf2;
+      --ink-soft: #aab6c0;
+      --safety: #ffc400;
+      --safety-ink: #181200;
+      --blueprint: #82b8e6;
+      --rule: #2c3640;
+      --card: #161b22;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    font-size: 1.06rem;
+  }
+  .mono {
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  }
+  a { color: var(--blueprint); }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--safety);
+    color: var(--safety-ink);
+    padding: 12px 20px;
+    font-weight: 700;
+    z-index: 10;
+  }
+  .skip-link:focus {
+    left: 12px;
+    top: 12px;
+  }
+  .wrap {
+    max-width: 800px;
+    margin-inline: auto;
+    padding-inline: 22px;
+  }
+  /* ---------- Header ---------- */
+  header.site {
+    border-bottom: 3px solid var(--ink);
+  }
+  .site-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px 20px;
+    padding-block: 16px;
+  }
+  .site-name {
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    font-size: 1.05rem;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  nav.site-nav {
+    display: flex;
+    gap: 22px;
+    font-size: 0.95rem;
+  }
+  nav.site-nav a { padding: 6px 0; }
+  /* ---------- Hero ---------- */
+  .hero { padding-block: 64px 56px; }
+  .hero .constat {
+    font-size: clamp(1.7rem, 5.4vw, 2.9rem);
+    line-height: 1.18;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    margin: 0 0 14px;
+    max-width: 18ch;
+  }
+  .hero .constat .q {
+    background: var(--safety);
+    color: var(--safety-ink);
+    padding: 0 0.18em;
+  }
+  .hero .reponse {
+    font-size: clamp(1.05rem, 2.6vw, 1.3rem);
+    color: var(--ink-soft);
+    max-width: 52ch;
+    margin: 0 0 34px;
+  }
+  .hero .reponse strong { color: var(--ink); }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 15px 26px;
+    font-weight: 700;
+    font-size: 1.02rem;
+    text-decoration: none;
+    border: 3px solid var(--ink);
+    min-height: 48px;
+  }
+  .btn-primary {
+    background: var(--safety);
+    color: var(--safety-ink);
+    border-color: var(--safety-ink);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--ink);
+  }
+  .btn:hover { text-decoration: underline; }
+  /* ---------- Sections ---------- */
+  section { padding-block: 46px; border-top: 1px solid var(--rule); }
+  .eyebrow {
+    display: inline-block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 8px;
+  }
+  h2 {
+    font-size: clamp(1.45rem, 3.6vw, 1.9rem);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+  }
+  p { max-width: 62ch; }
+  /* ---------- Pipeline ---------- */
+  ol.pipeline {
+    list-style: none;
+    margin: 26px 0 0;
+    padding: 0;
+    counter-reset: step;
+  }
+  ol.pipeline li {
+    counter-increment: step;
+    padding: 16px 0 16px 56px;
+    position: relative;
+    border-top: 1px dashed var(--rule);
+  }
+  ol.pipeline li:first-child { border-top: none; }
+  ol.pipeline li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 38px;
+    height: 38px;
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  ol.pipeline strong { display: block; }
+  ol.pipeline span { color: var(--ink-soft); font-size: 0.97rem; }
+  /* ---------- Règle des seuils (signature) ---------- */
+  ul.regle {
+    list-style: none;
+    margin: 30px 0 0;
+    padding: 0 0 0 26px;
+    border-left: 6px solid var(--safety);
+  }
+  ul.regle li {
+    position: relative;
+    padding: 13px 0 13px 18px;
+  }
+  ul.regle li::before {
+    content: "";
+    position: absolute;
+    left: -26px;
+    top: 50%;
+    width: 26px;
+    height: 4px;
+    background: var(--ink);
+  }
+  ul.regle .val {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-weight: 700;
+    font-size: 1.12rem;
+    margin-right: 10px;
+  }
+  ul.regle .art {
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-right: 10px;
+  }
+  ul.regle .lib { color: var(--ink-soft); }
+  .note-limites {
+    margin-top: 22px;
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    max-width: 60ch;
+  }
+  /* ---------- Hardware ---------- */
+  ul.hardware {
+    list-style: none;
+    margin: 26px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+  }
+  ul.hardware li {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    padding: 18px;
+  }
+  ul.hardware strong { display: block; margin-bottom: 4px; }
+  ul.hardware span { color: var(--ink-soft); font-size: 0.94rem; }
+  /* ---------- Honnêteté ---------- */
+  .honnete {
+    background: var(--card);
+    border-left: 6px solid var(--safety);
+    padding: 22px 24px;
+    margin-top: 24px;
+  }
+  .honnete p { margin: 0 0 12px; }
+  .honnete p:last-child { margin-bottom: 0; }
+  /* ---------- Footer ---------- */
+  footer.site {
+    border-top: 3px solid var(--ink);
+    padding-block: 30px 44px;
+    font-size: 0.93rem;
+    color: var(--ink-soft);
+  }
+  footer.site p { margin: 0 0 8px; }
+  footer.site .marque {
+    font-weight: 700;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<a href="#contenu" class="skip-link">Aller au contenu principal</a>
+
+<header class="site">
+  <div class="wrap site-bar">
+    <a class="site-name mono" href="./">audit-ifc-rgaa</a>
+    <nav class="site-nav" aria-label="Liens principaux">
+      <a href="demo_terminal.html">Démo</a>
+      <a href="https://github.com/Youniziak/audit-ifc-rgaa">Code source</a>
+      <a href="https://github.com/Youniziak/audit-ifc-rgaa/blob/main/README.md" hreflang="en" lang="en">English</a>
+    </nav>
+  </div>
+</header>
+
+<main id="contenu">
+
+  <div class="hero wrap">
+    <h1 class="constat">Les outils d'audit d'accessibilité sont conçus par des voyants, pour des voyants. <span class="q">Vraiment&nbsp;?</span></h1>
+    <p class="reponse"><strong>audit-ifc-rgaa</strong> prend le chemin inverse&nbsp;: un pipeline open source qui va du modèle BIM (IFC) au rapport d'audit entièrement lisible au lecteur d'écran, jusqu'à l'export BCF que les architectes ouvrent dans leurs propres outils. Conçu et dirigé par un auditeur déficient visuel.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="demo_terminal.html">Voir la démo en direct</a>
+      <a class="btn btn-secondary" href="https://github.com/Youniziak/audit-ifc-rgaa">Lire le code sur GitHub</a>
+    </div>
+  </div>
+
+  <section aria-labelledby="t-pipeline">
+    <div class="wrap">
+      <p class="eyebrow">Le pipeline</p>
+      <h2 id="t-pipeline">Du fichier IFC au retour vers l'architecte</h2>
+      <p>Toute la donnée nécessaire existe déjà dans la maquette numérique du bâtiment. Le pipeline la rend exploitable, puis la confronte au réel.</p>
+      <ol class="pipeline">
+        <li><strong>Audit automatique du modèle</strong> <span>Le fichier IFC (ISO 16739) est analysé&nbsp;: portes, escaliers, rampes, couloirs, sanitaires sont vérifiés contre l'arrêté du 8&nbsp;décembre&nbsp;2014.</span></li>
+        <li><strong>Rapport pensé pour être écouté</strong> <span>Markdown structuré, 100&nbsp;% lisible avec NVDA, JAWS, VoiceOver ou TalkBack. Pas un plan à déchiffrer&nbsp;: un document qui se lit.</span></li>
+        <li><strong>Comparaison avec le terrain</strong> <span>Les mesures réelles (JSON horodaté) sont confrontées aux valeurs déclarées. Une rampe annoncée à 4,8&nbsp;% qui fait 6&nbsp;% en vrai&nbsp;: l'écart est documenté.</span></li>
+        <li><strong>Export BCF 2.1 vers l'architecte</strong> <span>Chaque écart s'ouvre dans Revit, ArchiCAD ou BIMcollab, positionné directement sur le modèle 3D. La boucle est fermée.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-seuils">
+    <div class="wrap">
+      <p class="eyebrow">Ce qui est vérifié — v0.3</p>
+      <h2 id="t-seuils">Les seuils réglementaires, comme des crans sur une règle</h2>
+      <p>Chaque vérification correspond à un seuil de l'arrêté du 8&nbsp;décembre&nbsp;2014 — les mêmes seuils que le mètre tactile du volet matériel matérialise par des encoches.</p>
+      <ul class="regle">
+        <li><span class="val">0,80&nbsp;m</span> <span class="art">Art.&nbsp;10</span> <span class="lib">largeur minimale des portes (0,90&nbsp;m en entrée principale d'ERP)</span></li>
+        <li><span class="val">0,28&nbsp;m</span> <span class="art">Art.&nbsp;7-1</span> <span class="lib">giron minimal des marches d'escalier</span></li>
+        <li><span class="val">0,16&nbsp;m</span> <span class="art">Art.&nbsp;7-1</span> <span class="lib">hauteur maximale de marche</span></li>
+        <li><span class="val">5&nbsp;%</span> <span class="art">Art.&nbsp;7-2</span> <span class="lib">pente maximale des rampes (8&nbsp;% toléré sur 2&nbsp;m)</span></li>
+        <li><span class="val">1,40&nbsp;m</span> <span class="art">Art.&nbsp;6</span> <span class="lib">largeur minimale des couloirs (1,20&nbsp;m en rétrécissement ponctuel)</span></li>
+        <li><span class="val">Ø&nbsp;1,50&nbsp;m</span> <span class="art">Art.&nbsp;12</span> <span class="lib">cercle de rotation de fauteuil dans les sanitaires</span></li>
+      </ul>
+      <p class="note-limites">Ce que l'automatisation ne couvre pas — contrastes de signalétique, bandes podotactiles, mains courantes, sonorisation, qualité d'usage perçue — figure explicitement dans chaque rapport généré.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-hardware">
+    <div class="wrap">
+      <p class="eyebrow">Le volet matériel</p>
+      <h2 id="t-hardware">Des instruments de mesure blind-first, en open hardware</h2>
+      <p>Interface principale non visuelle&nbsp;: voix, vibration, toucher. Utilisables par les voyants — l'inverse n'étant pas vrai, et c'est volontaire. Licence CERN-OHL-P&nbsp;v2.</p>
+      <ul class="hardware">
+        <li><strong>Mètre tactile à crans</strong> <span>règle imprimable 3D, les seuils réglementaires sous les doigts</span></li>
+        <li><strong>Télémètre laser vocal</strong> <span>annonce vocale en français, retour vibratoire — ≈&nbsp;32&nbsp;€ en composants</span></li>
+        <li><strong>Inclinomètre vocal</strong> <span>mesure de pente en continu, alertes aux seuils — ≈&nbsp;29&nbsp;€</span></li>
+        <li><strong>Colorimètre WCAG bâti</strong> <span>contraste de signalétique mesuré objectivement — ≈&nbsp;38&nbsp;€, sans équivalent commercial connu</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-honnete">
+    <div class="wrap">
+      <p class="eyebrow">Transparence</p>
+      <h2 id="t-honnete">Deux choses dites honnêtement</h2>
+      <div class="honnete">
+        <p><strong>Les règles de conformité sont françaises.</strong> L'architecture est conçue pour être adaptée aux référentiels d'autres pays — les contributions en ce sens sont bienvenues.</p>
+        <p><strong>Le code a été produit en pair-programming avec une IA</strong> (Claude, Anthropic), dirigée comme un accélérateur d'exécution. Le concept, l'architecture, les choix de standards et les décisions sont humains — ceux de Kévin Chatellard, auditeur en reconversion vers l'accessibilité numérique. Cette transparence est volontaire.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-agir">
+    <div class="wrap">
+      <p class="eyebrow">Participer</p>
+      <h2 id="t-agir">Le projet est libre — emparez-vous-en</h2>
+      <p>v0.3, fonctionnelle, démontrée sur fichiers de test. Retours, critiques et contributions bienvenus — en particulier de celles et ceux qui auditent, construisent ou vivent l'accessibilité.</p>
+      <div class="cta-row" style="margin-top: 22px;">
+        <a class="btn btn-primary" href="https://github.com/Youniziak/audit-ifc-rgaa/issues">Ouvrir une issue</a>
+        <a class="btn btn-secondary" href="https://github.com/Youniziak/audit-ifc-rgaa/blob/main/README.fr.md">Lire la documentation</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p><span class="marque">audit-ifc-rgaa</span> — un projet <span class="marque">Exylia Project</span> de Kévin Chatellard (Youniziak).</p>
+    <p>Code sous licence GPL-3.0 · Matériel sous CERN-OHL-P v2 · <a href="https://github.com/Youniziak/audit-ifc-rgaa">github.com/Youniziak/audit-ifc-rgaa</a></p>
+    <p>Cette page&nbsp;: zéro JavaScript, zéro dépendance externe, contrastes AAA, navigation clavier. L'accessibilité n'est pas une couche — c'est la structure.</p>
+  </div>
+</footer>
+
+</body>
+</html>
