@@ -40,7 +40,7 @@ Trois raisons pratiques :
    litige Ad'AP, elle doit être tracée par l'instrument lui-même, pas
    reconstituée à partir d'un OCR.
 3. **Économie** : un télémètre laser parlant industriel coûte 200–400 €. Un
-   équivalent open hardware coûte 25 € en composants. La barrière d'accès
+   équivalent open hardware coûte ~32 € en composants. La barrière d'accès
    doit être basse.
 
 ## Pourquoi pas attendre les industriels

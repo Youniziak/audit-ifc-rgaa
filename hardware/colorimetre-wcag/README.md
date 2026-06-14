@@ -50,7 +50,7 @@ Un capteur de couleur portable qui :
 | Modes | mesure simple, comparaison de paires, série |
 | Source lumineuse | LED blanche calibrée (compense l'éclairage ambiant) |
 | Annonce vocale | français, voix neuronale |
-| Coût matière | ~30 € |
+| Coût matière | ~38 € |
 
 ## Architecture envisagée
 

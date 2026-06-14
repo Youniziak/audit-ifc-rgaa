@@ -24,7 +24,7 @@ Un télémètre laser **open hardware** :
 - Annonce **vocale française** (Piper TTS embarquée — voix neuronale, pas
   robotique)
 - **Retour vibratoire** distinct selon le seuil RGAA approché ou franchi
-- Coût matière < **30 €**
+- Coût matière **~32 €**
 - Boîtier imprimé 3D, autonomie 8 h sur batterie LiPo USB-C
 
 ## Cahier des charges fonctionnel

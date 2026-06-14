@@ -24,9 +24,9 @@ Voir [docs/PHILOSOPHIE.md](docs/PHILOSOPHIE.md) pour le détail.
 | Outil | Statut | Coût estimé | Difficulté |
 |-------|--------|-------------|------------|
 | [Mètre tactile à crans RGAA](metre-tactile-rgaa/) | Concept | ~5 € | ⭐ |
-| [Télémètre laser vocal](telemetre-vocal/) | Concept | ~25 € | ⭐⭐ |
-| [Inclinomètre vocal continu](inclinometre-vocal/) | Concept | ~20 € | ⭐⭐ |
-| [Colorimètre WCAG bâti](colorimetre-wcag/) | Concept | ~30 € | ⭐⭐⭐ |
+| [Télémètre laser vocal](telemetre-vocal/) | Concept | ~32 € | ⭐⭐ |
+| [Inclinomètre vocal continu](inclinometre-vocal/) | Concept | ~29 € | ⭐⭐ |
+| [Colorimètre WCAG bâti](colorimetre-wcag/) | Concept | ~38 € | ⭐⭐⭐ |
 
 **Statuts possibles** : `Concept` → `BOM finalisée` → `Prototype` → `Testé sur site` → `Publié OSHWA`.
 
