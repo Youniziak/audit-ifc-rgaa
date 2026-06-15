@@ -107,7 +107,9 @@
     display: flex; align-items: center; justify-content: space-between;
     gap: 1rem; min-height: 3.9rem; padding-block: 0.45rem;
   }
-  .brand { display: flex; align-items: baseline; gap: 0.55rem; text-decoration: none; color: var(--ink); flex-shrink: 0; }
+  .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 0.12rem; text-decoration: none; color: var(--ink); flex-shrink: 0; }
+  .brand .signature { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+  .brand .brand-line { display: flex; align-items: baseline; gap: 0.55rem; }
   .brand .mark { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
   .brand .ver { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; border: 1.5px solid var(--ink); padding: 0.05rem 0.35rem; border-radius: 999px; }
   .nav { display: flex; align-items: center; gap: clamp(0.75rem, 2vw, 1.6rem); }
@@ -339,9 +341,12 @@
 
 <header class="site-header" id="haut">
   <div class="wrap">
-    <a class="brand" href="#contenu" aria-label="audit-ifc-rgaa, version 0.3">
-      <span class="mark">audit-ifc-rgaa</span>
-      <span class="ver">v0.3</span>
+    <a class="brand" href="#contenu" aria-label="Exylia Project, audit-ifc-rgaa, version 0.3">
+      <span class="signature">Exylia Project</span>
+      <span class="brand-line">
+        <span class="mark">audit-ifc-rgaa</span>
+        <span class="ver">v0.3</span>
+      </span>
     </a>
     <a class="skip" href="#titre-principal">Aller au contenu principal</a>
     <nav class="nav" aria-label="Navigation principale">
@@ -378,7 +383,7 @@
         <strong>audit-ifc-rgaa</strong> part du modèle numérique d'un bâtiment (BIM, format IFC / ISO 16739) et produit un rapport de conformité entièrement lisible au lecteur d'écran, puis exporte les écarts vers l'architecte. Conçu et dirigé par un auditeur déficient visuel.
       </p>
       <div class="cta-row">
-        <a class="btn btn--amber" href="demo.html">Voir une démo <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn--amber" href="https://github.com/Youniziak/audit-ifc-rgaa#demo">Voir une démo <span class="arrow" aria-hidden="true">→</span></a>
         <a class="btn btn--ghost" href="https://github.com/Youniziak/audit-ifc-rgaa">Lire le code sur GitHub <span class="arrow" aria-hidden="true">↗</span></a>
         <a class="btn btn--ghost" href="https://github.com/Youniziak/audit-ifc-rgaa/blob/main/CONTRIBUTING.md">Contribuer</a>
         <a class="btn btn--don" href="https://github.com/sponsors/Youniziak">Faire un don <span class="arrow" aria-hidden="true">♥</span></a>
@@ -635,7 +640,7 @@
         <p class="lede">Le projet est fonctionnel en version 0.3. Tout est ouvert : lisez-le, exécutez-le, proposez des améliorations.</p>
       </div>
       <div class="cta-row">
-        <a class="btn btn--amber" href="demo.html">Voir une démo <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn--amber" href="https://github.com/Youniziak/audit-ifc-rgaa#demo">Voir une démo <span class="arrow" aria-hidden="true">→</span></a>
         <a class="btn btn--ghost" href="https://github.com/Youniziak/audit-ifc-rgaa">Lire le code sur GitHub <span class="arrow" aria-hidden="true">↗</span></a>
         <a class="btn btn--ghost" href="https://github.com/Youniziak/audit-ifc-rgaa/blob/main/CONTRIBUTING.md">Contribuer</a>
         <a class="btn btn--don" href="https://github.com/sponsors/Youniziak">Faire un don <span class="arrow" aria-hidden="true">♥</span></a>
@@ -664,7 +669,7 @@
         <p class="col-title">Le projet</p>
         <ul>
           <li><a href="https://github.com/Youniziak/audit-ifc-rgaa">Dépôt GitHub</a></li>
-          <li><a href="demo.html">Démonstration</a></li>
+          <li><a href="https://github.com/Youniziak/audit-ifc-rgaa#demo">Démonstration</a></li>
           <li><a href="https://github.com/Youniziak/audit-ifc-rgaa/blob/main/CONTRIBUTING.md">Contribuer</a></li>
           <li><a href="https://github.com/sponsors/Youniziak">Faire un don</a></li>
           <li><a href="https://github.com/Youniziak/audit-ifc-rgaa/blob/main/LICENSE">Licences : GPL-3.0 / CERN-OHL-P v2</a></li>
