@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>audit-ifc-rgaa — démonstration terminal</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --term-bg: #000000;
+    --green: #4ade80;
+    --white: #f0f6fc;
+    --grey: #c9d1d9;
+    --dim: #8b949e;
+    --accent: #58a6ff;
+    --focus: #f0f6fc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--grey);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    padding: 16px;
+    max-width: 920px;
+    margin-inline: auto;
+  }
+  header h1 {
+    color: var(--white);
+    font-size: 1.4rem;
+    margin: 8px 0 4px;
+  }
+  header p {
+    margin: 0 0 16px;
+    color: var(--dim);
+    font-size: 0.95rem;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  button {
+    background: var(--panel);
+    color: var(--white);
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 1rem;
+    min-height: 48px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  button[aria-pressed="true"] {
+    background: #1f6feb;
+    border-color: #1f6feb;
+  }
+  .terminal {
+    background: var(--term-bg);
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .titlebar {
+    background: #161b22;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: var(--dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #30363d;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .dot.r { background: #ff5f56; }
+  .dot.y { background: #ffbd2e; }
+  .dot.g { background: #27c93f; }
+  .screen-wrap {
+    height: min(58vh, 520px);
+    overflow-y: auto;
+    padding: 14px;
+  }
+  pre#screen {
+    margin: 0;
+    font-family: "Cascadia Code", "Fira Code", Consolas, Menlo, monospace;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--grey);
+  }
+  .p { color: var(--green); font-weight: 600; }
+  .c { color: var(--white); font-weight: 600; }
+  .cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.1em;
+    background: var(--green);
+    vertical-align: text-bottom;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  footer {
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: var(--dim);
+  }
+  footer a { color: var(--accent); }
+  details {
+    margin-top: 14px;
+    background: var(--panel);
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  summary { cursor: pointer; color: var(--white); min-height: 44px; display: flex; align-items: center; }
+  details pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.85rem;
+    color: var(--grey);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>audit-ifc-rgaa — démonstration en direct</h1>
+  <p>Sortie authentique des scripts v0.3.0, exécutés le 11 juin 2026. Rien n'est simulé : ce sont les vraies commandes et leurs vrais résultats.</p>
+</header>
+
+<div class="toolbar" role="toolbar" aria-label="Contrôles de la démonstration">
+  <button id="btnPlay">▶ Lancer la démo</button>
+  <button id="btnRestart">↻ Rejouer</button>
+  <button id="btnSpeed" aria-pressed="false">⏩ Vitesse ×2</button>
+  <button id="btnAll">📄 Tout afficher (sans animation)</button>
+</div>
+
+<div class="terminal">
+  <div class="titlebar" aria-hidden="true">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span>Termux — ~/audit-ifc-rgaa</span>
+  </div>
+  <div class="screen-wrap" id="wrap">
+    <pre id="screen" role="log" aria-live="polite" aria-label="Sortie du terminal"></pre>
+  </div>
+</div>
+
+<details>
+  <summary>Transcription textuelle complète de la démonstration</summary>
+  <pre id="transcript"></pre>
+</details>
+
+<footer>
+  Projet libre (GPL-3.0) — <a href="https://github.com/Youniziak/audit-ifc-rgaa">github.com/Youniziak/audit-ifc-rgaa</a><br>
+  Audit d'accessibilité du bâti depuis le BIM, par les auditeurs concernés.
+</footer>
+
+<script>
+const PROMPT = "~/audit-ifc-rgaa $ ";
+
+const REPORT = [
+"# Rapport d'audit d'accessibilité — test_erp_avec_espaces.ifc",
+"",
+"**Date de l'audit** : 2026-06-11 05:05:56",
+"**Fichier source** : `exemples/test_erp_avec_espaces.ifc`",
+"**Schéma IFC** : IFC4",
+"**Référentiel** : arrêté du 8 décembre 2014 — accessibilité des ERP existants.",
+"",
+"## Synthèse",
+"",
+"- Nombre d'étages : **1**",
+"- Couloirs audités : **2**",
+"- Sanitaires audités : **2**",
+"- Vérifications conformes : **2**",
+"- Non-conformités relevées : **3**",
+"  - Bloquantes : **2**",
+"  - Majeures : **1**",
+"  - Mineures : **0**",
+"- Taux de conformité : **40.0 %**",
+"",
+"## Non-conformités relevées",
+"",
+"### Couloir",
+"",
+"#### 1. Couloir RDC",
+"",
+"- **Identifiant IFC (GlobalId)** : `0wiZkJ4zH7PvbPwTHCKoZi`",
+"- **Sévérité** : bloquante",
+"- **Article applicable** : Art. 6 — arrêté 8 déc 2014",
+"- **Constat** : Largeur minimale du couloir : 1.10 m.",
+"- **Exigence** : Largeur minimum 1.40 m, rétrécissement ponctuel toléré jusqu'à 1.20 m.",
+"",
+"### Sanitaire",
+"",
+"#### 1. WC standard",
+"",
+"- **Identifiant IFC (GlobalId)** : `12WBpCwYPB7utnuEZ2An1A`",
+"- **Sévérité** : bloquante",
+"- **Article applicable** : Art. 12 — arrêté 8 déc 2014",
+"- **Constat** : Plus petite dimension : 1.20 m. Le cercle de rotation Ø 1,50 m ne peut pas être inscrit.",
+"- **Exigence** : Un espace de manœuvre Ø 1.50 m doit pouvoir s'inscrire dans le sanitaire (hors débattement de porte).",
+"",
+"#### 2. WC standard",
+"",
+"- **Sévérité** : majeure",
+"- **Constat** : Surface : 2.40 m².",
+"- **Exigence** : Surface recommandée ≥ 3.00 m² pour intégrer cuvette, espace d'usage latéral 0,80 × 1,30 m et rotation Ø 1,50 m.",
+"",
+"## Limites du contrôle automatisé",
+"",
+"Cet audit ne couvre que les éléments **géométriques et numériques** du modèle BIM.",
+"Les vérifications suivantes nécessitent un audit complémentaire sur site :",
+"",
+"- Contrastes visuels de la signalétique (WCAG 2.1)",
+"- Bandes podotactiles d'éveil à la vigilance (norme NF P98-351)",
+"- Mains courantes (présence, hauteur, prolongement)",
+"- Sonorisation des feux et des ascenseurs",
+"- Qualité d'usage perçue par les personnes en situation de handicap",
+"",
+"---",
+"",
+"*Rapport généré par audit-ifc-rgaa — outil libre sous licence GPL-3.0.*"
+];
+
+const STEPS = [
+  { t: "cmd", text: "ls" },
+  { t: "pause", ms: 400 },
+  { t: "out", delay: 150, lines: [
+    "CHANGELOG.md        audit_ifc_rgaa.py        exemples",
+    "IDEES_FUTURES.md    bcf_export.py            generer_exemple_espaces.py",
+    "LICENSE             comparaison_terrain.py   hardware",
+    "README.fr.md        README.md                requirements.txt",
+    "VERSION"
+  ]},
+  { t: "pause", ms: 700 },
+
+  { t: "cmd", text: "python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc" },
+  { t: "out", delay: 350, lines: [ "Audit en cours : test_erp_avec_espaces.ifc…" ]},
+  { t: "pause", ms: 900 },
+  { t: "out", delay: 220, lines: [
+    "Rapport généré : exemples/test_erp_avec_espaces_audit.md",
+    "  Conformes : 2",
+    "  Non-conformités : 3",
+    "  Taux de conformité : 40.0 %"
+  ]},
+  { t: "pause", ms: 1100 },
+
+  { t: "cmd", text: "cat exemples/test_erp_avec_espaces_audit.md" },
+  { t: "out", delay: 55, lines: REPORT },
+  { t: "pause", ms: 1200 },
+
+  { t: "cmd", text: "python3 comparaison_terrain.py exemples/test_house.ifc exemples/mesures_exemple.json --bcf retours_architecte.bcfzip" },
+  { t: "out", delay: 300, lines: [
+    "Comparaison : test_house.ifc ↔ mesures_exemple.json",
+    "Rapport Markdown : exemples/test_house_terrain.md",
+    "Fichier BCF : retours_architecte.bcfzip",
+    "  Mesures : 2",
+    "  Écarts significatifs BIM/terrain : 1",
+    "  Non-conformités réglementaires : 1"
+  ]},
+  { t: "pause", ms: 800 },
+  { t: "out", delay: 80, lines: [
+    "",
+    "# Le fichier .bcfzip s'ouvre directement dans Revit,",
+    "# ArchiCAD ou BIMcollab : chaque écart apparaît",
+    "# positionné sur le modèle 3D de l'architecte."
+  ]}
+];
+
+const screen = document.getElementById("screen");
+const wrap = document.getElementById("wrap");
+const btnPlay = document.getElementById("btnPlay");
+const btnRestart = document.getElementById("btnRestart");
+const btnSpeed = document.getElementById("btnSpeed");
+const btnAll = document.getElementById("btnAll");
+
+let runId = 0;
+let playing = false;
+let speed = 1;
+
+function esc(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function scrollBottom() { wrap.scrollTop = wrap.scrollHeight; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms / speed)); }
+function removeCursor() {
+  const c = screen.querySelector(".cursor");
+  if (c) c.remove();
+}
+function addCursor() {
+  removeCursor();
+  screen.insertAdjacentHTML("beforeend", '<span class="cursor" aria-hidden="true"></span>');
+}
+
+async function typeCommand(text, id) {
+  removeCursor();
+  screen.insertAdjacentHTML("beforeend", '<span class="p">' + esc(PROMPT) + "</span>");
+  const span = document.createElement("span");
+  span.className = "c";
+  screen.appendChild(span);
+  addCursor();
+  for (const ch of text) {
+    if (id !== runId) return;
+    span.textContent += ch;
+    scrollBottom();
+    await sleep(34);
+  }
+  removeCursor();
+  screen.insertAdjacentHTML("beforeend", "\n");
+  scrollBottom();
+}
+
+async function printLines(lines, delay, id) {
+  for (const line of lines) {
+    if (id !== runId) return;
+    screen.insertAdjacentHTML("beforeend", esc(line) + "\n");
+    scrollBottom();
+    await sleep(delay);
+  }
+}
+
+async function play() {
+  runId++;
+  const id = runId;
+  playing = true;
+  btnPlay.textContent = "⏸ Démo en cours…";
+  btnPlay.disabled = true;
+  screen.innerHTML = "";
+  for (const step of STEPS) {
+    if (id !== runId) return;
+    if (step.t === "cmd") await typeCommand(step.text, id);
+    else if (step.t === "out") await printLines(step.lines, step.delay, id);
+    else if (step.t === "pause") await sleep(step.ms);
+  }
+  if (id !== runId) return;
+  screen.insertAdjacentHTML("beforeend", '<span class="p">' + esc(PROMPT) + "</span>");
+  addCursor();
+  scrollBottom();
+  playing = false;
+  btnPlay.textContent = "▶ Lancer la démo";
+  btnPlay.disabled = false;
+}
+
+function showAll() {
+  runId++;
+  playing = false;
+  btnPlay.textContent = "▶ Lancer la démo";
+  btnPlay.disabled = false;
+  let txt = "";
+  for (const step of STEPS) {
+    if (step.t === "cmd") txt += PROMPT + step.text + "\n";
+    else if (step.t === "out") txt += step.lines.join("\n") + "\n";
+  }
+  screen.textContent = txt;
+  screen.insertAdjacentHTML("beforeend", '<span class="p">' + esc(PROMPT) + "</span>");
+  addCursor();
+  scrollBottom();
+}
+
+btnPlay.addEventListener("click", play);
+btnRestart.addEventListener("click", play);
+btnSpeed.addEventListener("click", () => {
+  speed = speed === 1 ? 2 : 1;
+  btnSpeed.setAttribute("aria-pressed", speed === 2 ? "true" : "false");
+  btnSpeed.textContent = speed === 2 ? "⏩ Vitesse ×2 (active)" : "⏩ Vitesse ×2";
+});
+btnAll.addEventListener("click", showAll);
+
+// Transcription statique pour lecteurs d'écran
+(function () {
+  let txt = "";
+  for (const step of STEPS) {
+    if (step.t === "cmd") txt += PROMPT + step.text + "\n";
+    else if (step.t === "out") txt += step.lines.join("\n") + "\n";
+  }
+  document.getElementById("transcript").textContent = txt;
+})();
+
+// État initial : invite vide avec curseur
+screen.insertAdjacentHTML("beforeend", '<span class="p">' + esc(PROMPT) + "</span>");
+addCursor();
+</script>
+
+</body>
+</html>
