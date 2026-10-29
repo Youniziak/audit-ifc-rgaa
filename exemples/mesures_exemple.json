@@ -42,6 +42,6 @@
       "IfcRamp": ["Pset_RampCommon.Slope"],
       "IfcStair": ["Pset_StairCommon.RiserHeight", "Pset_StairCommon.TreadLength"]
     },
-    "note": "La premiere mesure illustre une porte conforme dans le BIM (1.00 m) mais non conforme en realite (0.87 m < 0.90 m). Cest exactement le type d ecart que les audits sur plan ratent systematiquement."
+    "note": "La premiere mesure illustre une porte conforme dans le BIM (1.00 m) mais plus etroite en realite (0.87 m). Avec --neuf, elle est non conforme si cest une porte principale (0.87 m < 0.90 m) ; avec --existant, elle reste conforme (0.87 m >= 0.80 m). Lecart BIM / terrain est signale dans les deux cas : cest exactement ce que les audits sur plan ratent. La hauteur de porte est comparee au BIM mais pas evaluee reglementairement : aucun des deux arretes nen fixe."
   }
 }

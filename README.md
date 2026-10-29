@@ -32,7 +32,7 @@
 > 🇫🇷 **Version française : [README.fr.md](README.fr.md)**
 >
 > ⚠️ **Regulatory scope:** the compliance rules implemented here are based on
-> **French regulations** (arrêté of 8 December 2014, RGAA). The pipeline
+> **French regulations** (arrêtés of 20 April 2017 and 8 December 2014). The pipeline
 > architecture is reusable and can be adapted to any country's accessibility
 > standards.
 
@@ -58,8 +58,11 @@ reality.
 ### Software part — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`
 
 - Parses a project's IFC file
-- Automatically checks compliance with the requirements of the French arrêté of
-  8 December 2014 (doors, stairs, ramps, corridors, sanitary facilities)
+- Automatically checks compliance with the French regulation the auditor
+  chooses for each audit: the arrêté of 20 April 2017 (new public buildings)
+  or the arrêté of 8 December 2014 (existing public buildings) — doors, stairs,
+  ramps, corridors, sanitary facilities. Every threshold is sourced in
+  [REFERENTIEL.md](REFERENTIEL.md) (French)
 - Generates a structured Markdown report readable by screen readers
 - Compares declared values against on-site measurements (JSON file)
 - Exports discrepancies in the standard BCF 2.1 format, exchangeable with Revit,
@@ -89,7 +92,7 @@ but present visual interface.
                                ▼
     ┌─────────────────────────────────────────────────────────────┐
     │  audit_ifc_rgaa.py                                           │
-    │  Automated geometric audit against the arrêté of 8 Dec 2014 │
+    │  Geometric audit against the chosen text (new / existing)   │
     └──────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
@@ -123,47 +126,68 @@ but present visual interface.
     └─────────────────────────────────────────────────────────────┘
 
 ## Installation
-clone https://github.com/Youniziak/audit-ifc-rgaa.git
+
+```bash
+git clone https://github.com/Youniziak/audit-ifc-rgaa.git
 cd audit-ifc-rgaa
 pip install -r requirements.txt
+```
 
 Single dependency: IfcOpenShell (LGPL).
 
 ## Quick start
 
+Every command needs the applicable regulation: `--neuf` (new building,
+arrêté of 20 April 2017) or `--existant` (existing building, arrêté of
+8 December 2014). Without one of them, the tool stops and asks for it.
+
 ### 1. Compliance audit from the BIM model alone
 
-python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc
+```bash
+python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc --existant
+```
 
 Generates `exemples/test_erp_avec_espaces_audit.md` listing all detected
 non-compliances with severity and regulatory article.
 
 ### 2. BIM ↔ on-site comparison + BCF export
 
-python3 comparaison_terrain.py exemples/test_house.ifc 
-exemples/mesures_exemple.json 
---bcf retours_architecte.bcfzip
+```bash
+python3 comparaison_terrain.py exemples/test_house.ifc \
+                               exemples/mesures_exemple.json \
+                               --neuf --bcf retours_architecte.bcfzip
+```
 
 Produces the discrepancy report in Markdown and a `.bcfzip` file to hand
 directly to the architect.
 
 ### 3. Regenerate the test IFC file
+
+```bash
 python3 generer_exemple_espaces.py
+```
 
-## What is checked (v0.3)
+### 4. Run the tests
 
-| Element | Check | Article |
-| --- | --- | --- |
-| Doors | Width ≥ 0.80 m (rooms) or 0.90 m (main ERP) | Art. 10 |
-| Doors | Clear height ≥ 2.00 m | Art. 10 |
-| Stairs | Tread depth ≥ 0.28 m | Art. 7-1 |
-| Stairs | Riser height ≤ 0.16 m | Art. 7-1 |
-| Ramps | Slope ≤ 5% normal, 8% tolerated over 2 m | Art. 7-2 |
-| Corridors | Width ≥ 1.40 m (1.20 m at a localized narrowing) | Art. 6 |
-| Sanitary | Smallest dimension ≥ 1.50 m (Ø 1.50 m turning circle) | Art. 12 |
-| Sanitary | Area ≥ 3.00 m² (recommendation) | Art. 12 |
+```bash
+pip install pytest
+python3 -m pytest tests/
+```
 
-*(Articles refer to the French arrêté of 8 December 2014.)*
+## What is checked (v0.3.1)
+
+Thresholds for new buildings (arrêté of 20 April 2017), then for existing
+buildings (arrêté of 8 December 2014). Details and sources:
+[REFERENTIEL.md](REFERENTIEL.md).
+
+| Element | New | Existing | Article |
+| --- | --- | --- | --- |
+| Doors, width | 0.90 m (0.80 m for non-adapted toilets and cubicles) | 0.80 m | Art. 10 |
+| Stairs, tread depth | at least 0.28 m | at least 0.28 m | Art. 7.1 |
+| Stairs, riser height | at most 0.16 m | at most 0.17 m | Art. 7.1 |
+| Ramps, slope | 5%; 8% over 2 m; 10% over 0.50 m | 6%; 10% over 2 m; 12% over 0.50 m | Art. 2, applied indoors by Art. 6 |
+| Corridors, width | 1.40 m (1.20 m at a localized narrowing) | 1.20 m (0.90 m at a localized narrowing) | Art. 6, referring to Art. 2 |
+| Sanitary, turning space | Ø 1.50 m, inside or else in front of the door | Ø 1.50 m, inside or else in front of the door | Art. 12 and Annex 2 |
 
 ## What is not (yet) checked
 
@@ -184,14 +208,18 @@ audit-ifc-rgaa/
 ├── README.md                    This document (English)
 ├── README.fr.md                 French version
 ├── CHANGELOG.md                 Version log
-├── VERSION                      Current version (0.3.0)
+├── VERSION                      Current version (0.3.1)
+├── REFERENTIEL.md               Applied thresholds, article by article, with sources
 ├── LICENSE                      GPL-3.0 for the code
 ├── requirements.txt             Python dependencies
 │
 ├── audit_ifc_rgaa.py            Main module — IFC compliance audit
+├── referentiels.py              Thresholds of both regulations (new / existing)
 ├── comparaison_terrain.py       BIM ↔ on-site measurement comparison
 ├── bcf_export.py                BCF 2.1 file generation
 ├── generer_exemple_espaces.py   Test IFC generation helper
+│
+├── tests/                       Tests (python3 -m pytest tests/)
 │
 ├── exemples/                    Demonstration files
 │   ├── test_house.ifc           Simple house (1 door)
@@ -231,6 +259,7 @@ Standards used:
 - [x] v0.1 — Basic geometric audit: doors, stairs, ramps
 - [x] v0.2 — Horizontal circulation and accessible sanitary facilities
 - [x] v0.3 — BIM ↔ on-site comparison + BCF 2.1 export
+- [x] v0.3.1 — Choice of applicable regulation (new or existing), sourced thresholds, tests
 - [ ] v0.4 — Maneuvering spaces, accessible elevators
 - [ ] v0.5 — Accessible PDF export (PDF/UA, ISO 14289)
 - [ ] v0.6 — Automatic tactile floor-plan generation (STL)
@@ -268,7 +297,7 @@ replace the certified auditor's expertise or the mandatory regulatory checks
   title   = {audit-ifc-rgaa: an open pipeline for built-environment
              accessibility auditing from BIM},
   year    = {2026},
-  version = {0.3.0},
+  version = {0.3.1},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }

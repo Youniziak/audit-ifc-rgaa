@@ -5,9 +5,9 @@ comparaison_terrain.py — Compare les valeurs BIM déclarées aux mesures réel
 relevées sur site, et génère un rapport d'écarts + un fichier BCF échangeable
 avec les architectes.
 
-Usage :
-    python3 comparaison_terrain.py mon_batiment.ifc mesures.json
-    python3 comparaison_terrain.py mon_batiment.ifc mesures.json --bcf ecarts.bcfzip
+Usage (le texte applicable est obligatoire : --neuf ou --existant) :
+    python3 comparaison_terrain.py mon_batiment.ifc mesures.json --neuf
+    python3 comparaison_terrain.py mon_batiment.ifc mesures.json --existant --bcf ecarts.bcfzip
 
 Format attendu du fichier de mesures (JSON) :
 
@@ -34,7 +34,8 @@ Format attendu du fichier de mesures (JSON) :
 La propriété `propriete` correspond au nom de l'attribut IFC ou de la propriété
 Pset_* à comparer. Pour les portes : `OverallWidth`, `OverallHeight`. Pour les
 rampes : `Pset_RampCommon.Slope`. Pour les escaliers : `Pset_StairCommon.RiserHeight`,
-`Pset_StairCommon.TreadLength`.
+`Pset_StairCommon.TreadLength`. La hauteur de porte est comparée au BIM mais
+n'est pas évaluée réglementairement : aucun des deux arrêtés n'en fixe.
 
 Auteur : Kévin (Youniziak)
 Licence : GPL-3.0-or-later
@@ -62,16 +63,8 @@ except ImportError:
     )
     sys.exit(1)
 
-# Import des seuils réglementaires depuis le module principal
-from audit_ifc_rgaa import (
-    PORTE_PRINCIPALE_LARGEUR_MIN,
-    PORTE_LOCAL_LARGEUR_MIN,
-    PORTE_HAUTEUR_MIN,
-    ESCALIER_GIRON_MIN,
-    ESCALIER_HAUTEUR_MARCHE_MAX,
-    RAMPE_PENTE_MAX_NORMALE,
-    RAMPE_PENTE_MAX_2M,
-)
+from audit_ifc_rgaa import ajouter_choix_referentiel, lire_referentiel
+from referentiels import Referentiel
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -96,7 +89,7 @@ class Ecart:
     auditeur: str
     commentaire: str = ""
     statut_bim_terrain: str = ""        # "concordant", "ecart_dans_tolerance", "ecart_significatif"
-    statut_reglementaire: str = ""      # "conforme", "non_conforme", "non_evaluable"
+    statut_reglementaire: str = ""      # "conforme", "a_verifier", "non_conforme", "non_evaluable"
     article_applicable: str = ""
 
     @property
@@ -104,6 +97,8 @@ class Ecart:
         """Couleur d'alerte combinant les deux statuts."""
         if self.statut_reglementaire == "non_conforme":
             return "rouge"
+        if self.statut_reglementaire == "a_verifier":
+            return "orange"
         if self.statut_bim_terrain == "ecart_significatif":
             return "orange"
         if self.statut_bim_terrain == "ecart_dans_tolerance":
@@ -145,42 +140,46 @@ def evaluer_conformite_reglementaire(
     element_type: str,
     propriete: str,
     valeur_mesuree: float,
+    ref: Referentiel,
 ) -> tuple[str, str]:
-    """Détermine si la valeur mesurée respecte le seuil RGAA applicable.
+    """Détermine si la valeur mesurée respecte le seuil du texte appliqué.
 
-    Retourne (statut, article).
+    Retourne (statut, article). Statuts : « conforme », « non_conforme »,
+    « a_verifier » (pente dans les tolérances, qui dépendent de la longueur
+    du plan incliné), « non_evaluable » (aucun seuil réglementaire).
     """
     et = element_type.lower()
     pr = propriete.split(".")[-1].lower()
 
     if "door" in et and pr == "overallwidth":
-        if valeur_mesuree < PORTE_LOCAL_LARGEUR_MIN:
-            return "non_conforme", "Art. 10 — arrêté 8 déc 2014"
-        if valeur_mesuree < PORTE_PRINCIPALE_LARGEUR_MIN:
-            return "non_conforme", "Art. 10 — arrêté 8 déc 2014 (porte principale)"
-        return "conforme", "Art. 10 — arrêté 8 déc 2014"
-
-    if "door" in et and pr == "overallheight":
-        if valeur_mesuree < PORTE_HAUTEUR_MIN:
-            return "non_conforme", "Art. 10 — arrêté 8 déc 2014"
-        return "conforme", "Art. 10 — arrêté 8 déc 2014"
+        article = ref.article("10")
+        if valeur_mesuree < ref.porte_largeur_min:
+            return "non_conforme", article
+        if valeur_mesuree < ref.porte_principale_largeur_min:
+            return "non_conforme", f"{article} (si porte principale)"
+        return "conforme", article
 
     if "ramp" in et and pr in ("slope", "pente"):
-        if valeur_mesuree > RAMPE_PENTE_MAX_2M:
-            return "non_conforme", "Art. 7-2 — arrêté 8 déc 2014"
-        if valeur_mesuree > RAMPE_PENTE_MAX_NORMALE:
-            return "non_conforme", "Art. 7-2 — arrêté 8 déc 2014 (palier requis)"
-        return "conforme", "Art. 7-2 — arrêté 8 déc 2014"
+        article = ref.article("2 (repris par l'art. 6)")
+        if valeur_mesuree > ref.pente_toleree_50cm:
+            return "non_conforme", article
+        if valeur_mesuree > ref.pente_toleree_2m:
+            return "a_verifier", f"{article} (tolérée sur 0,50 m au plus)"
+        if valeur_mesuree > ref.pente_max:
+            return "a_verifier", f"{article} (tolérée sur 2 m au plus)"
+        return "conforme", article
 
     if "stair" in et and pr in ("treadlength", "giron"):
-        if valeur_mesuree < ESCALIER_GIRON_MIN:
-            return "non_conforme", "Art. 7-1 — arrêté 8 déc 2014"
-        return "conforme", "Art. 7-1 — arrêté 8 déc 2014"
+        article = ref.article("7.1")
+        if valeur_mesuree < ref.escalier_giron_min:
+            return "non_conforme", article
+        return "conforme", article
 
     if "stair" in et and pr in ("riserheight", "hauteurmarche"):
-        if valeur_mesuree > ESCALIER_HAUTEUR_MARCHE_MAX:
-            return "non_conforme", "Art. 7-1 — arrêté 8 déc 2014"
-        return "conforme", "Art. 7-1 — arrêté 8 déc 2014"
+        article = ref.article("7.1")
+        if valeur_mesuree > ref.escalier_hauteur_marche_max:
+            return "non_conforme", article
+        return "conforme", article
 
     return "non_evaluable", ""
 
@@ -189,7 +188,9 @@ def evaluer_conformite_reglementaire(
 #  COMPARAISON
 # ─────────────────────────────────────────────────────────────────────────────
 
-def comparer(chemin_ifc: str, chemin_mesures: str) -> tuple[dict, list[Ecart]]:
+def comparer(
+    chemin_ifc: str, chemin_mesures: str, ref: Referentiel
+) -> tuple[dict, list[Ecart]]:
     """Compare valeurs BIM déclarées vs mesures terrain. Retourne (audit_meta, écarts)."""
     ifc_file = ifcopenshell.open(chemin_ifc)
     scale = ifcopenshell.util.unit.calculate_unit_scale(ifc_file)
@@ -260,7 +261,7 @@ def comparer(chemin_ifc: str, chemin_mesures: str) -> tuple[dict, list[Ecart]]:
 
         # Conformité réglementaire (toujours évaluée sur la valeur réelle)
         statut_regl, article = evaluer_conformite_reglementaire(
-            element_type, propriete, valeur_mesuree
+            element_type, propriete, valeur_mesuree, ref
         )
 
         ecarts.append(Ecart(
@@ -290,7 +291,7 @@ def comparer(chemin_ifc: str, chemin_mesures: str) -> tuple[dict, list[Ecart]]:
 #  RAPPORT MARKDOWN
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generer_rapport(audit_meta: dict, ecarts: list[Ecart]) -> str:
+def generer_rapport(audit_meta: dict, ecarts: list[Ecart], ref: Referentiel) -> str:
     """Rapport Markdown comparatif BIM ↔ terrain."""
     lignes: list[str] = []
 
@@ -299,7 +300,8 @@ def generer_rapport(audit_meta: dict, ecarts: list[Ecart]) -> str:
     lignes.append(f"**Auditeur** : {audit_meta.get('auditeur', '?')}  ")
     lignes.append(f"**Date terrain** : {audit_meta.get('date_terrain', '?')}  ")
     lignes.append(f"**Appareil principal** : {audit_meta.get('appareil', '?')}  ")
-    lignes.append(f"**Date du rapport** : {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    lignes.append(f"**Date du rapport** : {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ")
+    lignes.append(f"**Référentiel appliqué** : {ref.titre} ([texte sur Légifrance]({ref.url})).\n")
 
     # Synthèse
     n_total = len(ecarts)
@@ -307,6 +309,7 @@ def generer_rapport(audit_meta: dict, ecarts: list[Ecart]) -> str:
     n_ecarts = sum(1 for e in ecarts if e.statut_bim_terrain in ("ecart_dans_tolerance", "ecart_significatif"))
     n_significatifs = sum(1 for e in ecarts if e.statut_bim_terrain == "ecart_significatif")
     n_non_conformes = sum(1 for e in ecarts if e.statut_reglementaire == "non_conforme")
+    n_a_verifier = sum(1 for e in ecarts if e.statut_reglementaire == "a_verifier")
     n_introuvables = sum(1 for e in ecarts if e.statut_bim_terrain == "introuvable")
 
     lignes.append("## Synthèse\n")
@@ -314,6 +317,8 @@ def generer_rapport(audit_meta: dict, ecarts: list[Ecart]) -> str:
     lignes.append(f"- Mesures concordantes avec le BIM : **{n_concordants}**")
     lignes.append(f"- Écarts BIM ↔ terrain : **{n_ecarts}** (dont **{n_significatifs}** significatifs)")
     lignes.append(f"- Non-conformités réglementaires sur le réel : **{n_non_conformes}**")
+    if n_a_verifier:
+        lignes.append(f"- Valeurs à vérifier (tolérance liée à la longueur) : **{n_a_verifier}**")
     if n_introuvables:
         lignes.append(f"- GlobalId absents du BIM : **{n_introuvables}**")
     lignes.append("")
@@ -349,7 +354,7 @@ def generer_rapport(audit_meta: dict, ecarts: list[Ecart]) -> str:
     lignes.append("## Note méthodologique\n")
     lignes.append("Trois statuts distincts sont produits pour chaque mesure :\n")
     lignes.append("- **BIM ↔ terrain** : la valeur mesurée correspond-elle à ce que le modèle BIM déclare ?")
-    lignes.append("- **Réglementaire** : la valeur mesurée respecte-t-elle les seuils RGAA/loi 2005 ?")
+    lignes.append("- **Réglementaire** : la valeur mesurée respecte-t-elle les seuils du texte appliqué ?")
     lignes.append("- **Niveau d'alerte** : combine les deux pour priorisation.\n")
     lignes.append("Un écart entre BIM et réel n'est pas en soi une non-conformité — mais il interroge ")
     lignes.append("la fiabilité du modèle BIM et peut révéler une malfaçon, un défaut de relevé, ")
@@ -373,7 +378,9 @@ def main() -> int:
     parser.add_argument("mesures", help="Fichier JSON des mesures terrain.")
     parser.add_argument("--sortie", "-o", help="Chemin du rapport Markdown.")
     parser.add_argument("--bcf", help="Chemin de sortie pour le fichier BCF (.bcfzip).")
+    ajouter_choix_referentiel(parser)
     args = parser.parse_args()
+    ref = lire_referentiel(parser, args)
 
     chemin_ifc = Path(args.ifc)
     chemin_mes = Path(args.mesures)
@@ -386,8 +393,9 @@ def main() -> int:
         return 1
 
     print(f"Comparaison : {chemin_ifc.name} ↔ {chemin_mes.name}")
-    audit_meta, ecarts = comparer(str(chemin_ifc), str(chemin_mes))
-    rapport_md = generer_rapport(audit_meta, ecarts)
+    print(f"Référentiel : {ref.titre}")
+    audit_meta, ecarts = comparer(str(chemin_ifc), str(chemin_mes), ref)
+    rapport_md = generer_rapport(audit_meta, ecarts, ref)
 
     sortie_md = Path(args.sortie) if args.sortie else chemin_ifc.with_name(
         chemin_ifc.stem + "_terrain.md"

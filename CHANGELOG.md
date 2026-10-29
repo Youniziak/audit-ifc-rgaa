@@ -5,6 +5,47 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.3.1] — 2026-10-30
+
+### Corrigé
+
+- **Seuils et texte appliqué** : les versions précédentes annonçaient
+  l'arrêté du 8 décembre 2014 (ERP existants) mais appliquaient en partie
+  les seuils de l'arrêté du 20 avril 2017 (ERP neufs) : pente de 5 % au lieu
+  de 6 %, marche de 16 cm au lieu de 17 cm, couloir de 1,40 m au lieu de
+  1,20 m. L'auditeur choisit désormais le texte applicable, et chaque seuil
+  correspond à ce texte.
+- **Articles cités** : les pentes relèvent de l'article 2, repris par
+  l'article 6 ; l'article 7.2, cité jusqu'ici pour les rampes, porte sur les
+  ascenseurs. Les articles s'écrivent comme sur Légifrance (7.1, et non 7-1).
+- **Tolérances de pente** : une pente comprise dans les tolérances (sur 2 m
+  ou sur 0,50 m) n'est plus déclarée non conforme d'office, mais signalée à
+  vérifier, sa conformité dépendant de la longueur du plan incliné.
+- **Sanitaires** : le texte admet que le demi-tour Ø 1,50 m soit, à défaut,
+  à l'extérieur devant la porte ; un sanitaire trop petit passe de
+  « bloquante » à « majeure, à vérifier sur plan ».
+
+### Ajouté
+
+- Options obligatoires `--neuf` et `--existant` pour `audit_ifc_rgaa.py` et
+  `comparaison_terrain.py` ; sans l'une des deux, l'outil s'arrête et le
+  demande. Le rapport indique en tête le texte appliqué, avec son lien.
+- Module `referentiels.py` : les seuils des deux textes.
+- `REFERENTIEL.md` : chaque seuil, article par article, avec ses sources
+  Légifrance.
+- Premiers tests (`tests/test_referentiels.py`, lancés par
+  `python3 -m pytest tests/`), chacun sur un cas où les deux textes donnent
+  un verdict différent.
+- Statut « à vérifier » dans la comparaison terrain (niveau d'alerte orange,
+  priorité haute dans le BCF).
+
+### Retiré
+
+- Contrôle de la hauteur de porte (2,00 m) : aucun des deux arrêtés n'en
+  fixe.
+- Contrôle de la surface des sanitaires (3 m²) : aucun des deux arrêtés ne
+  la fixe.
+
 ## [0.3.0] — 2026-04-30
 
 ### Ajouté
