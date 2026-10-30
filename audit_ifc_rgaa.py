@@ -274,76 +274,229 @@ def _exigence_pente(ref: Referentiel) -> str:
     )
 
 
-def auditer_rampes(ifc_file, scale: float, rapport: RapportAudit) -> None:
-    """Vérifie la pente des plans inclinés (article 2, repris par l'article 6).
+# Propriétés de pente, de la plus fiable à la moins fiable. Slope de
+# Pset_RampFlightCommon et RequiredSlope de Pset_RampCommon sont les propriétés
+# standard IFC (des angles) ; Pset_RampCommon.Slope n'est pas standard, mais
+# certains outils l'écrivent, et les versions 0.1 à 0.4.1 ne lisaient qu'elle.
+_PROPRIETES_PENTE = (
+    ("Pset_RampFlightCommon", "Slope"),
+    ("Pset_RampCommon", "Slope"),
+)
 
-    Le BIM donne la pente mais rarement la longueur du plan incliné : une
-    pente comprise dans les tolérances est donc signalée comme « à vérifier »
-    (majeure), seule une pente au-delà de toute tolérance est bloquante.
+
+def _valeur_typee(element, pset_nom: str, prop_nom: str):
+    """(valeur, type IFC de la valeur) d'une propriété simple, sur l'élément ou son type."""
+    sources = []
+    for rel in getattr(element, "IsDefinedBy", None) or []:
+        if rel.is_a("IfcRelDefinesByProperties"):
+            sources.append(rel.RelatingPropertyDefinition)
+    type_elt = ifcopenshell.util.element.get_type(element)
+    if type_elt is not None:
+        sources.extend(getattr(type_elt, "HasPropertySets", None) or [])
+    for pset in sources:
+        if not pset.is_a("IfcPropertySet") or pset.Name != pset_nom:
+            continue
+        for prop in pset.HasProperties:
+            if prop.Name == prop_nom and prop.is_a("IfcPropertySingleValue") and prop.NominalValue:
+                return prop.NominalValue.wrappedValue, prop.NominalValue.is_a()
+    return None, None
+
+
+def _ratio_de_pente(valeur, type_ifc: str, echelle_angle: float) -> Optional[float]:
+    """Convertit une pente déclarée en ratio (0,05 = 5 %), ou None si ambiguë.
+
+    Un angle (IfcPlaneAngleMeasure) est converti selon l'unité d'angle du
+    projet. Une valeur sans unité est lue comme un ratio si elle vaut 1 au
+    plus ; au-delà, on ne peut pas savoir si ce sont des degrés ou des pour cent.
+    """
+    import math
+    if type_ifc == "IfcPlaneAngleMeasure":
+        return math.tan(float(valeur) * echelle_angle)
+    valeur = float(valeur)
+    if 0 <= valeur <= 1:
+        return valeur
+    return None
+
+
+def _geometrie_pente(element) -> tuple[Optional[float], Optional[float]]:
+    """(pente, longueur en plan) mesurées sur la géométrie, ou (None, None).
+
+    On garde les faces tournées vers le haut et inclinées (le dessus du plan
+    incliné) : leur normale donne la pente et le sens de la montée, et
+    l'étendue de leurs sommets dans ce sens donne la longueur en plan. Marche
+    pour un coin plein comme pour une dalle inclinée, dans toute orientation.
+    """
+    import math
+    try:
+        settings = ifcopenshell.geom.settings()
+        settings.set("use-world-coords", True)
+        geo = ifcopenshell.geom.create_shape(settings, element).geometry
+    except Exception:
+        return None, None
+    v, f = geo.verts, geo.faces
+    if not v or not f:
+        return None, None
+    gx = gy = poids = 0.0
+    sommets = []
+    for i in range(0, len(f), 3):
+        a, b, c = (v[3 * f[i + k]: 3 * f[i + k] + 3] for k in range(3))
+        u = [b[j] - a[j] for j in range(3)]
+        w = [c[j] - a[j] for j in range(3)]
+        n = (u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0])
+        aire2 = math.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+        if aire2 == 0:
+            continue
+        nx, ny, nz = (x / aire2 for x in n)
+        horizontal = math.hypot(nx, ny)
+        if nz <= 0.1 or horizontal < 1e-3:
+            continue  # face verticale, tournée vers le bas, ou horizontale
+        gx += -nx / nz * aire2
+        gy += -ny / nz * aire2
+        poids += aire2
+        sommets.extend((a, b, c))
+    if poids == 0:
+        return None, None
+    gx, gy = gx / poids, gy / poids
+    pente = math.hypot(gx, gy)
+    ux, uy = gx / pente, gy / pente
+    projections = [p[0] * ux + p[1] * uy for p in sommets]
+    return pente, max(projections) - min(projections)
+
+
+def _plans_inclines(rampe) -> list:
+    """Les volées d'une rampe (IfcRampFlight), ou la rampe elle-même si elle
+    n'est pas décomposée."""
+    volees = [e for e in ifcopenshell.util.element.get_decomposition(rampe)
+              if e.is_a("IfcRampFlight")]
+    return volees or [rampe]
+
+
+def _paliers_de_rampe(rampe) -> list:
+    """Paliers modélisés dans une rampe : dalles de type LANDING."""
+    return [e for e in ifcopenshell.util.element.get_decomposition(rampe)
+            if e.is_a("IfcSlab") and _type_predefini(e) == "LANDING"]
+
+
+def auditer_rampes(ifc_file, scale: float, rapport: RapportAudit) -> None:
+    """Vérifie les plans inclinés (article 2, repris par l'article 6).
+
+    - Pente : lue dans le BIM, ou à défaut mesurée sur la géométrie.
+    - Longueur en plan, mesurée sur la géométrie : elle dit si une pente
+      tolérée l'est vraiment (2 m ou 0,50 m au plus), et si un palier de
+      repos intermédiaire est nécessaire (tous les 10 m).
+    - Paliers modélisés dans la rampe : 1,20 × 1,40 m au moins (annexe 2).
     """
     ref = rapport.referentiel
     article = ref.article("2 (repris par l'art. 6)")
+    echelle_angle = ifcopenshell.util.unit.calculate_unit_scale(ifc_file, "PLANEANGLEUNIT")
     rampes = ifc_file.by_type("IfcRamp")
     rapport.elements_audites["Rampes"] = len(rampes)
+    sans_pente = paliers_controles = 0
 
     for rampe in rampes:
-        nom = _nom_lisible(rampe)
-        gid = rampe.GlobalId
+        volees = _plans_inclines(rampe)
+        for volee in volees:
+            nom = _nom_lisible(rampe)
+            if volee is not rampe:
+                nom = f"{nom} — {_nom_lisible(volee)}"
+            gid = volee.GlobalId
 
-        psets = ifcopenshell.util.element.get_psets(rampe)
-        common = psets.get("Pset_RampCommon", {})
-        pente = common.get("Slope")  # généralement en degrés ou ratio selon producteur
+            pente_geo, longueur = _geometrie_pente(volee)
+            pente, origine = None, ""
+            for objet in (volee, rampe):
+                for pset_nom, prop_nom in _PROPRIETES_PENTE:
+                    valeur, type_ifc = _valeur_typee(objet, pset_nom, prop_nom)
+                    if valeur is not None:
+                        pente = _ratio_de_pente(valeur, type_ifc, echelle_angle)
+                        if pente is not None:
+                            origine = "déclarée"
+                            break
+                if pente is not None:
+                    break
+            if pente is None and pente_geo is not None:
+                pente, origine = pente_geo, "mesurée sur la géométrie"
+            if pente is None:
+                valeur, type_ifc = _valeur_typee(rampe, "Pset_RampCommon", "RequiredSlope")
+                if valeur is not None:
+                    pente = _ratio_de_pente(valeur, type_ifc, echelle_angle)
+                    origine = "exigée dans le BIM (RequiredSlope)"
+            if pente is None:
+                sans_pente += 1
+                continue
 
-        if pente is None:
-            rapport.non_conformites.append(NonConformite(
-                element_type="Rampe",
-                nom=nom,
-                global_id=gid,
-                article=article,
-                constat="Pente non renseignée dans le modèle BIM.",
-                exigence="La pente doit être documentée (Pset_RampCommon.Slope).",
-                severite="bloquante",
-            ))
-            continue
+            texte_pente = f"Pente {origine} : {pourcent(pente)}"
+            if (origine == "déclarée" and pente_geo is not None
+                    and abs(pente_geo - pente) > 0.005):
+                texte_pente += f" (la géométrie donne {pourcent(pente_geo)})"
+            texte_longueur = ""
+            if longueur is not None:  # coordonnées monde, en mètres
+                texte_longueur = f", sur {metres(longueur)} de long en plan"
 
-        # Heuristique : si la valeur > 1, c'est probablement en degrés ; sinon en ratio.
-        if pente > 1.0:
-            import math
-            ratio = math.tan(math.radians(pente))
-        else:
-            ratio = pente
+            ecarts = []
+            if pente > ref.pente_toleree_50cm:
+                ecarts.append(("bloquante", f"{texte_pente}{texte_longueur}, au-delà de toute tolérance.",
+                               _exigence_pente(ref)))
+            elif pente > ref.pente_max:
+                limite = 2.0 if pente <= ref.pente_toleree_2m else 0.50
+                if longueur is None:
+                    ecarts.append(("majeure", f"{texte_pente}.",
+                                   f"{_exigence_pente(ref)} Cette pente n'est admise que si le "
+                                   f"plan incliné mesure {metres(limite)} au plus : longueur à vérifier."))
+                elif longueur > limite + 0.005:
+                    ecarts.append(("majeure", f"{texte_pente}{texte_longueur}.",
+                                   f"{_exigence_pente(ref)} À cette pente, le plan incliné ne doit "
+                                   f"pas dépasser {metres(limite)}."))
+            if (longueur is not None and pente >= ref.palier_pente_min
+                    and longueur > ref.palier_intervalle + 0.005):
+                precision = (" ; si des paliers sont compris dans cet objet sans être "
+                             "modélisés à part, à vérifier sur plan") if volee is rampe else ""
+                ecarts.append(("majeure", f"{texte_pente}{texte_longueur}, sans palier intermédiaire modélisé.",
+                               f"À partir de {pourcent(ref.palier_pente_min)} de pente, un palier de "
+                               f"repos est nécessaire tous les {metres(ref.palier_intervalle)}{precision}."))
 
-        if ratio > ref.pente_toleree_50cm:
-            rapport.non_conformites.append(NonConformite(
-                element_type="Rampe",
-                nom=nom,
-                global_id=gid,
-                article=article,
-                constat=f"Pente : {pourcent(ratio)}, au-delà de toute tolérance.",
-                exigence=_exigence_pente(ref),
-                severite="bloquante",
-            ))
-        elif ratio > ref.pente_max:
-            longueur = "2 m" if ratio <= ref.pente_toleree_2m else "0,50 m"
-            rapport.non_conformites.append(NonConformite(
-                element_type="Rampe",
-                nom=nom,
-                global_id=gid,
-                article=article,
-                constat=f"Pente : {pourcent(ratio)}.",
-                exigence=(
-                    f"{_exigence_pente(ref)} Cette pente n'est admise que si le plan "
-                    f"incliné mesure {longueur} au plus : longueur à vérifier."
-                ),
-                severite="majeure",
-            ))
-        else:
-            rapport.conformites.append(Conformite(
-                element_type="Rampe",
-                nom=nom,
-                global_id=gid,
-                constat=f"Pente conforme : {pourcent(ratio)}.",
-            ))
+            for severite, constat, exigence in ecarts:
+                rapport.non_conformites.append(NonConformite(
+                    element_type="Rampe", nom=nom, global_id=gid, article=article,
+                    constat=constat, exigence=exigence, severite=severite,
+                ))
+            if not ecarts:
+                tolere = " (tolérance exceptionnelle respectée)" if pente > ref.pente_max else ""
+                rapport.conformites.append(Conformite(
+                    element_type="Rampe", nom=nom, global_id=gid,
+                    constat=f"{texte_pente}{texte_longueur}{tolere}.",
+                ))
+
+        for palier in _paliers_de_rampe(rampe):
+            dims = _bbox_horizontal(palier)
+            if dims is None:
+                continue
+            paliers_controles += 1
+            petit, grand = dims[0], dims[1]
+            nom = f"{_nom_lisible(rampe)} — {_nom_lisible(palier)}"
+            if petit < ref.palier_largeur - 0.005 or grand < ref.palier_longueur - 0.005:
+                rapport.non_conformites.append(NonConformite(
+                    element_type="Palier de repos", nom=nom, global_id=palier.GlobalId,
+                    article=ref.article("2 et annexe 2"),
+                    constat=f"Palier de {metres(petit)} × {metres(grand)}.",
+                    exigence=(
+                        "Le palier de repos s'insère en intégralité dans le cheminement : "
+                        f"rectangle de {metres(ref.palier_largeur)} × "
+                        f"{metres(ref.palier_longueur)} au moins."
+                    ),
+                    severite="majeure",
+                ))
+            else:
+                rapport.conformites.append(Conformite(
+                    element_type="Palier de repos", nom=nom, global_id=palier.GlobalId,
+                    constat=f"Palier de {metres(petit)} × {metres(grand)}.",
+                ))
+
+    rapport.elements_audites["Paliers de repos"] = paliers_controles
+    if sans_pente:
+        rapport.remarques.append(
+            f"Pente non contrôlée pour {sans_pente} plan(s) incliné(s) : ni pente "
+            "lisible dans le BIM (Pset_RampFlightCommon.Slope), ni géométrie exploitable"
+        )
 
 
 def auditer_etages(ifc_file, rapport: RapportAudit) -> None:
@@ -753,6 +906,76 @@ def auditer_manoeuvre_portes(ifc_file, scale: float, rapport: RapportAudit) -> N
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  AUDIT DES SEUILS DE PORTE (v0.4.2)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Un seuil de porte est un ressaut (article 2, repris par l'article 6) :
+#  2 cm au plus, à bord arrondi ou chanfreiné ; 4 cm au plus si le ressaut a
+#  sur toute sa hauteur une pente de 33 % au plus. Le BIM ne donne que
+#  l'épaisseur du seuil (IfcDoorLiningProperties.ThresholdThickness), pas sa
+#  saillie au-dessus du sol fini : l'outil la traite comme un ressaut probable.
+
+def _epaisseur_seuil(porte) -> Optional[float]:
+    """ThresholdThickness déclarée sur la porte ou sur son type (unités du projet)."""
+    sources = [rel.RelatingPropertyDefinition for rel in (porte.IsDefinedBy or [])
+               if rel.is_a("IfcRelDefinesByProperties")]
+    type_porte = ifcopenshell.util.element.get_type(porte)
+    if type_porte is not None:
+        sources.extend(getattr(type_porte, "HasPropertySets", None) or [])
+    for definition in sources:
+        if definition.is_a("IfcDoorLiningProperties") and definition.ThresholdThickness is not None:
+            return float(definition.ThresholdThickness)
+    return None
+
+
+def auditer_seuils(ifc_file, scale: float, rapport: RapportAudit) -> None:
+    """Vérifie l'épaisseur déclarée des seuils de porte, traités comme des ressauts."""
+    ref = rapport.referentiel
+    article = ref.article("2 (repris par l'art. 6)")
+    exigence = (
+        f"Ressaut à bord arrondi ou muni d'un chanfrein, de {metres(ref.ressaut_max)} "
+        f"au plus ; {metres(ref.ressaut_max_chanfrein)} au plus si le ressaut comporte "
+        "sur toute sa hauteur une pente de 33 % au plus."
+    )
+    controles = 0
+    for porte in ifc_file.by_type("IfcDoor"):
+        epaisseur = _epaisseur_seuil(porte)
+        if epaisseur is None:
+            continue
+        controles += 1
+        hauteur = epaisseur * scale
+        nom, gid = _nom_lisible(porte), porte.GlobalId
+        cm = f"{hauteur * 100:.1f}".replace(".", ",").replace(",0", "") + " cm"
+        if hauteur <= 0.0005:
+            rapport.conformites.append(Conformite(
+                element_type="Seuil de porte", nom=nom, global_id=gid,
+                constat="Pas de seuil déclaré (épaisseur nulle).",
+            ))
+        elif hauteur <= ref.ressaut_max + 0.0005:
+            rapport.conformites.append(Conformite(
+                element_type="Seuil de porte", nom=nom, global_id=gid,
+                constat=f"Seuil de {cm} : bord arrondi ou chanfreiné à vérifier sur place.",
+            ))
+        elif hauteur <= ref.ressaut_max_chanfrein + 0.0005:
+            rapport.non_conformites.append(NonConformite(
+                element_type="Seuil de porte", nom=nom, global_id=gid, article=article,
+                constat=f"Seuil de {cm} d'épaisseur déclarée.",
+                exigence=f"{exigence} Admis seulement avec ce chanfrein : à vérifier sur place.",
+                severite="mineure",
+            ))
+        else:
+            rapport.non_conformites.append(NonConformite(
+                element_type="Seuil de porte", nom=nom, global_id=gid, article=article,
+                constat=(
+                    f"Seuil de {cm} d'épaisseur déclarée : s'il dépasse du sol fini de "
+                    "toute cette épaisseur, le ressaut est trop haut."
+                ),
+                exigence=f"{exigence} Saillie réelle à mesurer sur place.",
+                severite="majeure",
+            ))
+    rapport.elements_audites["Seuils de porte"] = controles
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  AUDIT ASCENSEURS ET ÉLÉVATEURS (v0.4.1)
 # ─────────────────────────────────────────────────────────────────────────────
 #  Les arrêtés ne fixent pas de dimensions de cabine : ils renvoient à la norme
@@ -779,7 +1002,7 @@ _RE_MECANIQUE = re.compile(
 def _classer_transport(element) -> str:
     """« monte-charge », « elevateur », « ascenseur », « mecanique » ou « inconnu »."""
     libelle = _libelle_element(element)
-    type_transport = _type_transport(element)
+    type_transport = _type_predefini(element)
     if _RE_MONTE_CHARGE.search(libelle) and not _RE_PASSAGERS.search(libelle):
         return "monte-charge"
     if _RE_ELEVATEUR.search(libelle):
@@ -802,8 +1025,9 @@ def _libelle_element(element) -> str:
     return " | ".join(str(p).lower() for p in parts if p)
 
 
-def _type_transport(element) -> str:
-    """PredefinedType (IFC4) ou OperationType (IFC2X3), lu sur l'élément puis son type."""
+def _type_predefini(element) -> str:
+    """PredefinedType (IFC4) ou OperationType (IFC2X3 pour les appareils de
+    transport), lu sur l'élément puis sur son type."""
     candidats = [element, ifcopenshell.util.element.get_type(element)]
     for objet in candidats:
         for attr in ("PredefinedType", "OperationType"):
@@ -1066,12 +1290,22 @@ def generer_rapport_markdown(rapport: RapportAudit) -> str:
         "de local de moins de 100 personnes ; à 100 personnes ou plus, le passage utile "
         f"exigé est de {metres(ref.porte_principale_100_utile_min)}"
     )
-    lignes.append("- Longueur des plans inclinés, dont dépendent les tolérances de pente")
+    lignes.append(
+        "- Plans inclinés : longueur mesurée en plan sur la géométrie quand elle existe ; "
+        "paliers de repos en haut et en bas non vérifiés"
+    )
+    lignes.append(
+        "- Ressauts : seuls les seuils de porte déclarés dans le BIM sont contrôlés, "
+        "d'après leur épaisseur ; bord arrondi ou chanfrein, distance de 2,50 m entre "
+        "ressauts successifs et pas d'âne non vérifiés"
+    )
     lignes.append(
         "- Espace de manœuvre de porte : contrôle de premier niveau sur la boîte "
         "englobante de chaque espace ; mobilier, position de la porte le long de la "
         "circulation et débattement de la porte non pris en compte"
     )
+    if ref.note_manoeuvre:
+        lignes.append(f"- {ref.note_manoeuvre}")
     lignes.append(
         "- Ascenseurs : desserte de tous les étages ouverts au public, commandes, "
         "signalisation et position des portes de cabine non vérifiées ; élévateurs : "
@@ -1112,6 +1346,7 @@ def auditer(chemin_ifc: str, ref: Referentiel) -> RapportAudit:
     auditer_portes(ifc_file, scale, rapport)
     auditer_escaliers(ifc_file, scale, rapport)
     auditer_rampes(ifc_file, scale, rapport)
+    auditer_seuils(ifc_file, scale, rapport)
     auditer_circulations(ifc_file, rapport)
     auditer_sanitaires(ifc_file, rapport)
     auditer_manoeuvre_portes(ifc_file, scale, rapport)

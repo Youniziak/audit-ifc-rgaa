@@ -46,9 +46,8 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
-import math
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -63,7 +62,14 @@ except ImportError:
     )
     sys.exit(1)
 
-from audit_ifc_rgaa import ajouter_choix_referentiel, lire_referentiel
+from audit_ifc_rgaa import (
+    _epaisseur_seuil, _ratio_de_pente, _valeur_typee, ajouter_choix_referentiel,
+    lire_referentiel,
+)
+
+# Noms acceptés pour la hauteur d'un ressaut ou d'un seuil de porte mesurée
+_PROPRIETES_RESSAUT = ("ressaut", "hauteurressaut", "hauteurseuil", "thresholdheight",
+                       "thresholdthickness")
 from referentiels import Referentiel
 
 
@@ -110,8 +116,15 @@ class Ecart:
 #  EXTRACTION DES VALEURS DÉCLARÉES DEPUIS L'IFC
 # ─────────────────────────────────────────────────────────────────────────────
 
-def extraire_valeur_declaree(element, propriete: str, scale: float) -> Optional[float]:
-    """Extrait la valeur d'une propriété depuis un élément IFC, exprimée en mètres."""
+def extraire_valeur_declaree(element, propriete: str, scale: float,
+                             echelle_angle: float = 1.0) -> Optional[float]:
+    """Extrait la valeur d'une propriété depuis un élément IFC, exprimée en mètres
+    (ou en ratio pour une pente)."""
+    # Seuil de porte : épaisseur déclarée dans IfcDoorLiningProperties
+    if propriete.lower() in _PROPRIETES_RESSAUT and element.is_a("IfcDoor"):
+        epaisseur = _epaisseur_seuil(element)
+        return None if epaisseur is None else epaisseur * scale
+
     # Attributs directs (OverallWidth, OverallHeight)
     if "." not in propriete:
         valeur = getattr(element, propriete, None)
@@ -127,11 +140,13 @@ def extraire_valeur_declaree(element, propriete: str, scale: float) -> Optional[
     if valeur is None:
         return None
 
-    # Pour les pentes, on retourne le ratio brut (pas converti en mètres)
-    if prop_nom.lower() in ("slope", "pitch"):
-        v = float(valeur)
-        # Heuristique degrés → ratio si > 1
-        return math.tan(math.radians(v)) if v > 1.0 else v
+    # Pour les pentes, on retourne un ratio : un angle est converti selon
+    # l'unité d'angle du projet ; une valeur sans unité au-delà de 1 est ambiguë.
+    if prop_nom.lower() in ("slope", "pitch", "requiredslope"):
+        valeur_typee, type_ifc = _valeur_typee(element, pset_nom, prop_nom)
+        if valeur_typee is None:
+            valeur_typee, type_ifc = valeur, "IfcReal"
+        return _ratio_de_pente(valeur_typee, type_ifc, echelle_angle)
 
     return float(valeur) * scale
 
@@ -169,6 +184,14 @@ def evaluer_conformite_reglementaire(
             return "a_verifier", f"{article} (tolérée sur 2 m au plus)"
         return "conforme", article
 
+    if "door" in et and propriete.lower() in _PROPRIETES_RESSAUT:
+        article = ref.article("2 (repris par l'art. 6)")
+        if valeur_mesuree > ref.ressaut_max_chanfrein + 0.0005:
+            return "non_conforme", article
+        if valeur_mesuree > ref.ressaut_max + 0.0005:
+            return "a_verifier", f"{article} (admis jusqu'à 4 cm si chanfrein de 33 % au plus)"
+        return "conforme", article
+
     if "stair" in et and pr in ("treadlength", "giron"):
         article = ref.article(ref.art_escaliers)
         if valeur_mesuree < ref.escalier_giron_min:
@@ -194,6 +217,7 @@ def comparer(
     """Compare valeurs BIM déclarées vs mesures terrain. Retourne (audit_meta, écarts)."""
     ifc_file = ifcopenshell.open(chemin_ifc)
     scale = ifcopenshell.util.unit.calculate_unit_scale(ifc_file)
+    echelle_angle = ifcopenshell.util.unit.calculate_unit_scale(ifc_file, "PLANEANGLEUNIT")
 
     with open(chemin_mesures, "r", encoding="utf-8") as f:
         donnees = json.load(f)
@@ -240,7 +264,7 @@ def comparer(
             ))
             continue
 
-        valeur_declaree = extraire_valeur_declaree(element, propriete, scale)
+        valeur_declaree = extraire_valeur_declaree(element, propriete, scale, echelle_angle)
         element_type = element.is_a()
         element_nom = element.Name or f"{element_type} {gid[:8]}"
 
@@ -334,7 +358,7 @@ def generer_rapport(audit_meta: dict, ecarts: list[Ecart], ref: Referentiel) -> 
         if e.valeur_declaree is not None:
             lignes.append(f"- **Valeur déclarée (BIM)** : {e.valeur_declaree:.3f} {e.unite}")
         else:
-            lignes.append(f"- **Valeur déclarée (BIM)** : *(non renseignée)*")
+            lignes.append("- **Valeur déclarée (BIM)** : *(non renseignée)*")
         lignes.append(f"- **Valeur mesurée (terrain)** : {e.valeur_mesuree:.3f} {e.unite}")
         if e.ecart_absolu is not None:
             signe = "+" if e.ecart_absolu >= 0 else ""
