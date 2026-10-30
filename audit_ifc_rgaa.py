@@ -1616,6 +1616,52 @@ def lire_referentiel(parser: argparse.ArgumentParser, args) -> Referentiel:
     return referentiel(args.referentiel)
 
 
+def ajouter_option_pdf(parser: argparse.ArgumentParser) -> None:
+    """Option --pdf, commune à l'audit et à la comparaison terrain."""
+    parser.add_argument(
+        "--pdf", action="store_true",
+        help="Produit aussi le rapport en PDF accessible (balisé, variante PDF/UA-1), "
+             "à côté du rapport Markdown. Demande WeasyPrint ; vérifié par veraPDF "
+             "s'il est installé.",
+    )
+
+
+def chemins_de_sortie(demande: Path, pdf: bool) -> tuple[Path, Path]:
+    """(rapport Markdown, PDF). Si le chemin demandé finit par .pdf, c'est
+    celui du PDF, et le Markdown prend le même nom en .md."""
+    if pdf and demande.suffix.lower() == ".pdf":
+        return demande.with_suffix(".md"), demande
+    return demande, demande.with_suffix(".pdf")
+
+
+def exporter_pdf_et_verifier(texte_md: str, chemin_pdf: Path) -> int:
+    """Écrit le PDF et le vérifie si veraPDF est installé.
+
+    Retourne 0, ou 1 si l'export est impossible, si le PDF n'est pas conforme
+    ou si la vérification n'a pas pu se faire."""
+    from pdf_accessible import exporter_pdf, verifier_pdf_ua
+    try:
+        exporter_pdf(texte_md, chemin_pdf)
+    except RuntimeError as erreur:
+        sys.stderr.write(f"Erreur : {erreur}\n")
+        return 1
+    print(f"PDF accessible : {chemin_pdf}")
+    verification = verifier_pdf_ua(chemin_pdf)
+    if verification is None:
+        print("  Vérification PDF/UA-1 : veraPDF n'est pas installé, PDF non vérifié")
+        return 0
+    statut, detail = verification
+    if statut == "conforme":
+        print("  Vérification PDF/UA-1 (veraPDF) : conforme")
+        return 0
+    if statut == "non_conforme":
+        print("  Vérification PDF/UA-1 (veraPDF) : NON conforme")
+    else:
+        print("  Vérification PDF/UA-1 (veraPDF) : impossible, PDF non vérifié")
+    print(detail)
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Audit d'accessibilité bâti depuis un fichier IFC.",
@@ -1627,6 +1673,7 @@ def main() -> int:
              "Par défaut : <fichier>_audit.md à côté du fichier source.",
     )
     ajouter_choix_referentiel(parser)
+    ajouter_option_pdf(parser)
     args = parser.parse_args()
     ref = lire_referentiel(parser, args)
 
@@ -1640,8 +1687,9 @@ def main() -> int:
     rapport = auditer(str(chemin_ifc), ref)
     md = generer_rapport_markdown(rapport)
 
-    sortie = Path(args.sortie) if args.sortie else chemin_ifc.with_name(
-        chemin_ifc.stem + "_audit.md"
+    sortie, sortie_pdf = chemins_de_sortie(
+        Path(args.sortie) if args.sortie else chemin_ifc.with_name(chemin_ifc.stem + "_audit.md"),
+        args.pdf,
     )
     sortie.write_text(md, encoding="utf-8")
 
@@ -1650,6 +1698,8 @@ def main() -> int:
     print(f"  Non-conformités : {len(rapport.non_conformites)}")
     print(f"  Taux de conformité : {_taux(rapport)}")
 
+    if args.pdf:
+        return exporter_pdf_et_verifier(md, sortie_pdf)
     return 0
 
 

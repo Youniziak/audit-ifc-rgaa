@@ -5,6 +5,38 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.5.0] — 2026-10-30
+
+### Ajouté
+
+- **Rapport en PDF accessible** : option `--pdf` de `audit_ifc_rgaa.py` et de
+  `comparaison_terrain.py`. Le module `pdf_accessible.py` convertit le
+  rapport Markdown en HTML, puis en PDF balisé avec WeasyPrint, variante
+  PDF/UA-1 : arbre de structure (titres, listes, liens), langue, titre
+  affiché, polices incorporées.
+- Vérification par veraPDF (profil PDF/UA-1) quand la commande `verapdf` est
+  installée ; sans elle, l'outil le dit et ne déclare pas le PDF conforme.
+  Le rapport d'exemple passe ce profil.
+- `requirements-pdf.txt` (WeasyPrint, markdown), à part pour ne pas alourdir
+  l'installation de base.
+- Tests `tests/test_pdf.py` (les tests veraPDF sont sautés si veraPDF
+  manque).
+
+### Sécurité et accessibilité (relecture avant publication)
+
+- Le HTML contenu dans les noms d'éléments (qui viennent de l'IFC) est
+  échappé, et WeasyPrint ne va chercher aucune ressource : un nom piégé
+  pouvait faire incorporer un fichier de l'ordinateur dans le PDF, sans que
+  veraPDF le signale. Un test le vérifie.
+- Résultat de veraPDF lu sur son code de sortie : conforme, non conforme, ou
+  vérification impossible (Java absent, fichier illisible), qui n'est plus
+  confondue avec « non conforme ».
+- Pas de numéro de page : WeasyPrint ne le balise pas comme artefact.
+- Petites listes et liens gardés sur une même page ; noms très longs coupés
+  au lieu de déborder.
+- `-o rapport.pdf` : le PDF va là, le Markdown à côté, sans s'écraser.
+- Message clair si Pango ou markdown manque ; WeasyPrint 70 au minimum.
+
 ## [0.4.3] — 2026-10-30
 
 ### Ajouté
@@ -226,10 +258,6 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   audit complémentaire sur site
 
 ## À venir
-
-### [0.5.0]
-
-- Export du rapport en PDF accessible (PDF/UA conforme ISO 14289)
 
 ### [0.6.0]
 

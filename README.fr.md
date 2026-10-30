@@ -117,7 +117,8 @@ cd audit-ifc-rgaa
 pip install -r requirements.txt
 ```
 
-Dépendance unique : [IfcOpenShell](https://ifcopenshell.org/) (LGPL).
+Dépendance : [IfcOpenShell](https://ifcopenshell.org/) (LGPL). Pour le PDF
+accessible (option `--pdf`) : `pip install -r requirements-pdf.txt`.
 
 ## Utilisation rapide
 
@@ -145,13 +146,47 @@ python3 comparaison_terrain.py exemples/test_house.ifc \
 Produit le rapport d'écarts en Markdown et un fichier `.bcfzip` à
 transmettre directement à l'architecte.
 
-### 3. Régénérer le fichier IFC de test
+### 3. Rapport en PDF accessible
+
+Ajouter `--pdf` à l'une ou l'autre commande produit aussi le rapport en PDF,
+à côté du Markdown :
+
+```bash
+pip install -r requirements-pdf.txt
+python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc --existant --pdf
+```
+
+Le PDF est balisé (titres, listes, liens dans l'arbre de structure), déclare
+sa langue et son titre, et incorpore ses polices : c'est la variante PDF/UA-1
+de [WeasyPrint](https://weasyprint.org/). Si
+[veraPDF](https://verapdf.org/) est installé (commande `verapdf`), l'outil
+vérifie le fichier avec son profil PDF/UA-1 et affiche le résultat. Sans
+veraPDF, il le dit, et le PDF n'est pas déclaré conforme.
+
+La vérification automatique ne couvre pas tout PDF/UA : certains critères
+demandent un jugement humain (pertinence des titres, ordre de lecture voulu).
+Les rapports de l'outil n'ont ni image ni tableau, et se lisent dans l'ordre
+du Markdown. Une longue liste qui passe d'une page à l'autre (celle des
+limites, par exemple) devient deux listes dans le PDF : un lecteur d'écran
+annonce alors deux tailles de liste. Le PDF n'a pas de numéro de page :
+WeasyPrint ne le balise pas comme un artefact, et il se glisserait dans le
+texte pour qui lit dans l'ordre de la page.
+
+Sécurité : les noms d'éléments viennent du fichier IFC, qui peut venir d'un
+tiers. Le HTML qu'ils contiendraient est affiché tel quel, jamais interprété,
+et l'export ne va chercher aucun fichier ni aucune adresse.
+
+L'export n'a pas encore été essayé sur Termux. Pistes, non vérifiées :
+`pkg install pango python-pillow ttf-dejavu`, puis
+`pip install -r requirements-pdf.txt` (pip devra compiler cffi).
+
+### 4. Régénérer le fichier IFC de test
 
 ```bash
 python3 generer_exemple_espaces.py
 ```
 
-### 4. Lancer les tests
+### 5. Lancer les tests
 
 ```bash
 pip install pytest
@@ -199,15 +234,17 @@ automatisé* de chaque rapport généré.
 audit-ifc-rgaa/
 ├── README.md                    Ce document
 ├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.4.3)
+├── VERSION                      Version courante (0.5.0)
 ├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
 ├── LICENSE                      GPL-3.0 pour le code
 ├── requirements.txt             Dépendances Python
+├── requirements-pdf.txt         Dépendances de l'export PDF (--pdf)
 │
 ├── audit_ifc_rgaa.py            Module principal — audit conformité IFC
 ├── referentiels.py              Seuils des deux textes (neuf / existant)
 ├── comparaison_terrain.py       Comparaison BIM ↔ mesures terrain
 ├── bcf_export.py                Génération de fichiers BCF 2.1
+├── pdf_accessible.py            Rapport en PDF balisé (PDF/UA-1)
 ├── generer_exemple_espaces.py   Helper de génération d'IFC de test
 │
 ├── tests/                       Tests (python3 -m pytest tests/)
@@ -256,7 +293,7 @@ Standards utilisés :
 - [x] **v0.4.1** — Ascenseurs et élévateurs (art. 7.2 ou 7-2)
 - [x] **v0.4.2** — Rampes (longueur, paliers de repos) et seuils de porte
 - [x] **v0.4.3** — Largeur des escaliers, mesures des marches sur la géométrie
-- [ ] **v0.5** — Export PDF accessible (PDF/UA, ISO 14289)
+- [x] **v0.5** — Export PDF accessible (balisé PDF/UA-1, vérifié par veraPDF)
 - [ ] **v0.6** — Génération automatique de plans tactiles (STL)
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
 - [ ] **v1.x** — Premier prototype matériel publié (mètre tactile)
@@ -293,7 +330,7 @@ public d'accessibilité, attestations de conformité signées).
   title   = {audit-ifc-rgaa : pipeline ouvert d'audit d'accessibilité
              du bâti depuis le BIM},
   year    = {2026},
-  version = {0.4.3},
+  version = {0.5.0},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }

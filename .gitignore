@@ -7,6 +7,8 @@ venv/
 .env
 *_audit.md
 *_terrain.md
+*_audit.pdf
+*_terrain.pdf
 *.bcfzip
 .pytest_cache/
 test_house_non_conforme.ifc

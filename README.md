@@ -133,7 +133,8 @@ cd audit-ifc-rgaa
 pip install -r requirements.txt
 ```
 
-Single dependency: IfcOpenShell (LGPL).
+Dependency: IfcOpenShell (LGPL). For the accessible PDF (`--pdf` option):
+`pip install -r requirements-pdf.txt`.
 
 ## Quick start
 
@@ -161,13 +162,46 @@ python3 comparaison_terrain.py exemples/test_house.ifc \
 Produces the discrepancy report in Markdown and a `.bcfzip` file to hand
 directly to the architect.
 
-### 3. Regenerate the test IFC file
+### 3. Accessible PDF report
+
+Adding `--pdf` to either command also writes the report as a PDF, next to
+the Markdown file:
+
+```bash
+pip install -r requirements-pdf.txt
+python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc --existant --pdf
+```
+
+The PDF is tagged (headings, lists and links in the structure tree),
+declares its language and title, and embeds its fonts: it is the PDF/UA-1
+variant of [WeasyPrint](https://weasyprint.org/). If
+[veraPDF](https://verapdf.org/) is installed (`verapdf` command), the tool
+checks the file against its PDF/UA-1 profile and prints the result. Without
+veraPDF, it says so, and the PDF is not declared compliant.
+
+Automated checking does not cover all of PDF/UA: some criteria need human
+judgement (meaningful headings, intended reading order). The tool's reports
+have no images or tables and read in Markdown order. A long list that runs
+across a page break (the limits list, for instance) becomes two lists in
+the PDF, so a screen reader announces two list sizes. The PDF has no page
+numbers: WeasyPrint does not tag them as artifacts, and they would end up in
+the text for anyone reading in page order.
+
+Security: element names come from the IFC file, which may come from a third
+party. Any HTML they contain is shown as text, never interpreted, and the
+export fetches no file and no address.
+
+The export has not yet been tried on Termux. Untested leads:
+`pkg install pango python-pillow ttf-dejavu`, then
+`pip install -r requirements-pdf.txt` (pip will have to build cffi).
+
+### 4. Regenerate the test IFC file
 
 ```bash
 python3 generer_exemple_espaces.py
 ```
 
-### 4. Run the tests
+### 5. Run the tests
 
 ```bash
 pip install pytest
@@ -214,15 +248,17 @@ audit-ifc-rgaa/
 ├── README.md                    This document (English)
 ├── README.fr.md                 French version
 ├── CHANGELOG.md                 Version log
-├── VERSION                      Current version (0.4.3)
+├── VERSION                      Current version (0.5.0)
 ├── REFERENTIEL.md               Applied thresholds, article by article, with sources
 ├── LICENSE                      GPL-3.0 for the code
 ├── requirements.txt             Python dependencies
+├── requirements-pdf.txt         PDF export dependencies (--pdf)
 │
 ├── audit_ifc_rgaa.py            Main module — IFC compliance audit
 ├── referentiels.py              Thresholds of both regulations (new / existing)
 ├── comparaison_terrain.py       BIM ↔ on-site measurement comparison
 ├── bcf_export.py                BCF 2.1 file generation
+├── pdf_accessible.py            Tagged PDF report (PDF/UA-1)
 ├── generer_exemple_espaces.py   Test IFC generation helper
 │
 ├── tests/                       Tests (python3 -m pytest tests/)
@@ -270,7 +306,7 @@ Standards used:
 - [x] v0.4.1 — Elevators and platform lifts (Art. 7.2 or 7-2)
 - [x] v0.4.2 — Ramps (length, resting landings) and door thresholds
 - [x] v0.4.3 — Stair width, step measurements from geometry
-- [ ] v0.5 — Accessible PDF export (PDF/UA, ISO 14289)
+- [x] v0.5 — Accessible PDF export (tagged PDF/UA-1, checked with veraPDF)
 - [ ] v0.6 — Automatic tactile floor-plan generation (STL)
 - [ ] v1.0 — IndoorGML graphs for accessible indoor guidance
 - [ ] v1.x — First published hardware prototype (tactile ruler)
@@ -306,7 +342,7 @@ replace the certified auditor's expertise or the mandatory regulatory checks
   title   = {audit-ifc-rgaa: an open pipeline for built-environment
              accessibility auditing from BIM},
   year    = {2026},
-  version = {0.4.3},
+  version = {0.5.0},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }
