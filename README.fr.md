@@ -332,6 +332,8 @@ Standards utilisés :
 - [x] **v0.4.3** — Largeur des escaliers, mesures des marches sur la géométrie
 - [x] **v0.5** — Export PDF accessible (balisé PDF/UA-1, vérifié par veraPDF)
 - [x] **v0.6** — Plans tactiles en relief à imprimer en 3D (STL), avec légende et écarts de l'audit
+- [ ] **v0.7** — Plans visuels tirés de la maquette (contrastés, agrandissables, mêmes numéros que le plan tactile)
+- [ ] **v0.8** — Lecture de plans existants : PDF vectoriel et DXF d'abord, puis plans scannés et photos
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
 - [ ] **v1.x** — Premier prototype matériel publié (mètre tactile)
 
