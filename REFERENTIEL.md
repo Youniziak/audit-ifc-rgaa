@@ -46,14 +46,74 @@ Sur Légifrance, l'arrêté de 2017 fait des escaliers un article distinct
 (« Article 7-1 ») ; celui de 2014 les range dans l'article 7, au point 7.1.
 Les rapports suivent la numérotation du texte appliqué.
 
-- **Neuf** : hauteur de marche de 16 cm au plus, giron de 28 cm au moins.
-- **Existant** : hauteur de marche de 17 cm au plus, giron de 28 cm au moins.
-  En l'absence de travaux changeant les dimensions de l'escalier, ses
-  caractéristiques initiales peuvent être conservées : le rapport le rappelle
-  à chaque écart.
+- **Neuf** : hauteur de marche de 16 cm au plus, giron de 28 cm au moins,
+  largeur minimale entre mains courantes de 1,20 m.
+- **Existant** : hauteur de marche de 17 cm au plus, giron de 28 cm au moins,
+  largeur minimale entre mains courantes de 1 m. En l'absence de travaux
+  changeant les dimensions de l'escalier, ses caractéristiques initiales
+  peuvent être conservées : le rapport le rappelle à chaque écart.
 
-La largeur entre mains courantes (1,20 m pour le neuf, 1 m pour l'existant)
-n'est pas encore contrôlée.
+### Ce que fait l'outil (depuis la 0.4.3)
+
+- Un escalier décomposé en volées (`IfcStairFlight`) est contrôlé volée par
+  volée.
+- **Hauteur de marche et giron** : déclarés dans le BIM (attributs de la
+  volée, puis `Pset_StairFlightCommon`, puis `Pset_StairCommon`), ou à défaut
+  mesurés sur la géométrie. Le rapport dit d'où vient chaque valeur.
+- **Mesure sur la géométrie** : les marches sont les faces horizontales
+  tournées vers le haut, regroupées par altitude. Le sens de la montée va de
+  la plus basse à la plus haute ; l'outil retient la plus haute marche, le
+  plus petit giron et la plus petite largeur, perpendiculaire à la montée.
+  Si les marches ne sont pas alignées (volée tournante, escalier en L dans un
+  seul objet), ou si leurs hauteurs ou leurs girons varient, la géométrie
+  n'est pas exploitée : mieux vaut ne rien dire qu'une valeur fausse. Quand
+  une marche porte deux faces horizontales proches (le dessus de la structure
+  et celui du giron posé dessus), seule la plus haute compte ; en contrepartie,
+  des marches de moins de 9 cm de haut ne sont pas mesurées.
+- **Précision** : l'altitude de chaque marche est la moyenne de ses faces.
+  Tolérances de calcul : 0,5 mm pour la hauteur de marche et le giron, 5 mm
+  pour la largeur mesurée. Quand l'arrondi au centimètre rendrait la valeur
+  égale au seuil, le rapport l'écrit au millimètre.
+- **Sources des valeurs déclarées** : `Pset_StairFlightCommon`, puis
+  `Pset_StairCommon`, sur la volée puis l'escalier, et en dernier les
+  attributs de la volée. Une valeur hors de toute vraisemblance (marche hors
+  de 5 à 30 cm, giron hors de 15 à 60 cm) est écartée, et le rapport le dit.
+  Quand une valeur déclarée et la géométrie diffèrent de plus d'un
+  centimètre, le rapport donne les deux.
+- **Giron** : mesuré entre les bords avant (nez) de deux marches
+  successives, et non entre leurs centres.
+- **Essais sur des fichiers réels** (maquettes publiques) :
+  - trois maquettes ArchiCAD (dépôt opensourceBIM/TestFiles : AC11-FZK-Haus,
+    AC11-Institute, AC90R1-Jasmin-Sun) : sept escaliers tournants, non
+    mesurés, et le rapport le dit ; deux faces horizontales par marche
+    (structure et giron rapporté), prises en compte ;
+  - Revit 2024, IFC4 (dépôt viktor-platform/ifc-sample-models,
+    BuildingBIMModel) : vingt volées droites mesurées, marche de 14,6 cm,
+    giron de 30 cm, largeur de 1,14 m, égaux aux valeurs déclarées et à la
+    boîte englobante de la volée ;
+  - Revit 2011-2012, IFC2X3 (dépôts buildingsmart-community et
+    opensourceBIM : Medical-Dental Clinic, Duplex, Schultz Residence) : les
+    attributs des volées y sont écrits en pieds dans un projet en mètres
+    (0,5767 pour une marche de 17,6 cm). L'outil les lisait en premier et
+    annonçait des marches de 58 cm : ils passent désormais après les Pset,
+    et une valeur invraisemblable est écartée. Sur la Schultz Residence, le
+    giron mesuré entre centres donnait 24,1 cm pour 25,4 cm (dernière marche
+    sans nez) : d'où la mesure entre les nez de marche ;
+  - ArchiCAD, IFC2X3 (Esplanades, buildingsmart-community) : volées droites
+    mesurées (16 cm, 30 cm, 1,60 m), volées balancées et paliers non mesurés.
+- **Largeur** : l'outil mesure la largeur de la volée, pas celle entre mains
+  courantes, que le BIM ne donne pas. La seconde est au plus égale à la
+  première (y compris quand une seule main courante est admise) : une volée
+  plus étroite que le minimum ne peut pas offrir la largeur exigée (majeure) ;
+  une volée assez large reste à vérifier, les mains courantes réduisant le
+  passage. **Existant** : la conservation des caractéristiques initiales sans
+  travaux vaut pour tout le 1°, largeur comprise ; le rapport le rappelle à
+  chaque écart. Une largeur mesurée de moins de 0,60 m n'est pas retenue : la
+  géométrie ne porte sans doute pas les marches (limon seul, marches
+  modélisées à part) ; le rapport signale la largeur comme non contrôlée.
+- Escalier sans donnée exploitable : signalé dans les limites du rapport.
+  Jusqu'à la 0.4.2, il était déclaré « bloquant », ce qui confondait une
+  donnée manquante avec un obstacle.
 
 ## Plans inclinés — article 2, repris par l'article 6
 
@@ -104,6 +164,14 @@ intégralité dans le cheminement ».
   contrôlé, et le rapport le dit. Jusqu'à la 0.4.1, l'outil le déclarait
   « bloquant », ce qui confondait une donnée manquante avec un obstacle ; il
   ne lisait d'ailleurs qu'une propriété non standard.
+
+**Essai sur un fichier réel** : maquette publique Esplanades (ArchiCAD,
+IFC2X3, dépôt buildingsmart-community/Community-Sample-Test-Files). Ses quatre
+rampes en béton, posées en biais (environ 30°), sont mesurées à 5,1 % sur
+6,00 m. C'est cohérent avec le fichier : 0,708 m de dénivelé total moins
+0,40 m d'épaisseur de dalle, soit 0,308 m sur 6 m, et une surface projetée de
+12 m² pour 6 × 2 m. Deux autres « rampes » du fichier sont des dalles plates :
+l'outil ne leur trouve pas de pente et le dit.
 
 Non vérifié : les paliers en haut et en bas des plans inclinés (ils font
 partie du sol des pièces ou des circulations), la longueur mesurée le long de

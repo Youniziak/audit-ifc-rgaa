@@ -174,7 +174,7 @@ pip install pytest
 python3 -m pytest tests/
 ```
 
-## What is checked (v0.4.2)
+## What is checked (v0.4.3)
 
 Thresholds for new buildings (arrêté of 20 April 2017), then for existing
 buildings (arrêté of 8 December 2014). Details and sources:
@@ -185,6 +185,7 @@ buildings (arrêté of 8 December 2014). Details and sources:
 | Doors, width | 0.90 m (0.80 m for non-adapted toilets and cubicles) | 0.80 m | Art. 10 |
 | Stairs, tread depth | at least 0.28 m | at least 0.28 m | Art. 7-1 (new), 7.1 (existing) |
 | Stairs, riser height | at most 0.16 m | at most 0.17 m | Art. 7-1 (new), 7.1 (existing) |
+| Stairs, flight width | at least 1.20 m between handrails (to be checked) | at least 1 m between handrails; original dimensions may be kept if no works | Art. 7-1 (new), 7.1 (existing) |
 | Ramps, slope and length | 5%; 8% over 2 m; 10% over 0.50 m | 6%; 10% over 2 m; 12% over 0.50 m | Art. 2, applied indoors by Art. 6 |
 | Ramps, resting landing | every 10 m from 4%; 1.20 × 1.40 m | every 10 m from 5%; 1.20 × 1.40 m | Art. 2 and Annex 2 |
 | Door thresholds (small steps) | 2 cm; 4 cm with a bevel of at most 33% | same | Art. 2, applied indoors by Art. 6 |
@@ -213,7 +214,7 @@ audit-ifc-rgaa/
 ├── README.md                    This document (English)
 ├── README.fr.md                 French version
 ├── CHANGELOG.md                 Version log
-├── VERSION                      Current version (0.4.2)
+├── VERSION                      Current version (0.4.3)
 ├── REFERENTIEL.md               Applied thresholds, article by article, with sources
 ├── LICENSE                      GPL-3.0 for the code
 ├── requirements.txt             Python dependencies
@@ -268,6 +269,7 @@ Standards used:
 - [x] v0.4 — Door manoeuvring space (Annex 2)
 - [x] v0.4.1 — Elevators and platform lifts (Art. 7.2 or 7-2)
 - [x] v0.4.2 — Ramps (length, resting landings) and door thresholds
+- [x] v0.4.3 — Stair width, step measurements from geometry
 - [ ] v0.5 — Accessible PDF export (PDF/UA, ISO 14289)
 - [ ] v0.6 — Automatic tactile floor-plan generation (STL)
 - [ ] v1.0 — IndoorGML graphs for accessible indoor guidance
@@ -304,7 +306,7 @@ replace the certified auditor's expertise or the mandatory regulatory checks
   title   = {audit-ifc-rgaa: an open pipeline for built-environment
              accessibility auditing from BIM},
   year    = {2026},
-  version = {0.4.2},
+  version = {0.4.3},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }

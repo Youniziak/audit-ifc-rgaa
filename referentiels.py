@@ -50,6 +50,7 @@ class Referentiel:
     # Escaliers — article 7.1 (2014) ou 7-1 (2017)
     escalier_hauteur_marche_max: float
     escalier_giron_min: float
+    escalier_largeur_min: float   # largeur minimale entre mains courantes
 
     # Plans inclinés — article 2 (extérieur), repris par l'article 6 (intérieur)
     pente_max: float
@@ -115,6 +116,7 @@ NEUF = Referentiel(
     porte_principale_100_utile_min=1.40,
     escalier_hauteur_marche_max=0.16,
     escalier_giron_min=0.28,
+    escalier_largeur_min=1.20,
     pente_max=0.05,
     pente_toleree_2m=0.08,
     pente_toleree_50cm=0.10,
@@ -154,6 +156,7 @@ EXISTANT = Referentiel(
     porte_principale_100_utile_min=1.20,
     escalier_hauteur_marche_max=0.17,
     escalier_giron_min=0.28,
+    escalier_largeur_min=1.00,
     pente_max=0.06,
     pente_toleree_2m=0.10,
     pente_toleree_50cm=0.12,

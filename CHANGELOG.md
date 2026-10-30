@@ -5,6 +5,40 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.4.3] — 2026-10-30
+
+### Ajouté
+
+- **Largeur des escaliers** (article 7-1 ou 7.1) : 1,20 m entre mains
+  courantes pour le neuf, 1 m pour l'existant. L'outil mesure la largeur de
+  la volée sur la géométrie : plus étroite que le minimum, elle ne peut pas
+  offrir la largeur exigée (dans l'existant, les dimensions initiales restent
+  conservables sans travaux) ; assez large, la largeur entre mains courantes
+  reste à vérifier.
+- **Hauteur de marche et giron mesurés sur la géométrie** quand le BIM ne
+  les déclare pas ; lus aussi dans les attributs de la volée et dans
+  `Pset_StairFlightCommon`. Contrôle volée par volée.
+- Volées sans escalier parent contrôlées ; largeur non mesurée signalée.
+- **Essais sur des maquettes réelles** (Revit 2011 à 2024, ArchiCAD ; IFC2X3
+  et IFC4) : volées droites mesurées égales aux valeurs déclarées, rampes en
+  biais mesurées de façon cohérente. Deux erreurs trouvées et corrigées :
+  attributs de volée écrits en pieds par Revit 2011-2012 (marches lues à
+  58 cm), désormais lus après les Pset et écartés s'ils sont invraisemblables ;
+  giron mesuré entre centres faussé par une dernière marche sans nez,
+  désormais mesuré entre les nez de marche.
+- Tests `tests/test_escaliers.py`, dont les cas trouvés en relecture :
+  marche d'exactement 16 ou 17 cm à toute altitude, valeur déclarée
+  négative, escalier en L, limon seul, valeur au millimètre près du seuil.
+  Essai sur trois maquettes publiques
+  exportées d'ArchiCAD : leurs escaliers tournants ne sont pas mesurés, et
+  le cas réel d'une marche à deux faces horizontales (structure et giron
+  rapporté) est pris en compte.
+
+### Corrigé
+
+- Escalier sans donnée exploitable : signalé dans les limites du rapport,
+  au lieu d'être déclaré « bloquant ».
+
 ## [0.4.2] — 2026-10-30
 
 ### Ajouté
