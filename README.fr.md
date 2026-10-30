@@ -194,7 +194,9 @@ python3 plan_tactile.py exemples/test_house.ifc
 niveau et une légende en Markdown (lisible au lecteur d'écran). Sur la plaque :
 murs en relief, fenêtres en relief plus bas, portes ouvertes dans le mur,
 escaliers en stries, rampes en plan incliné, ascenseurs en plateau, numéros
-des locaux en braille. La légende donne le nom de chaque local, le sens des
+des locaux. Tout ce qui est écrit sur la plaque (titre, numéros, échelle)
+l'est en braille et en lettres ordinaires en relief, pour qu'on la lise qu'on
+voie ou non. La légende donne le nom de chaque local, le sens des
 symboles et l'échelle, le sens de chaque escalier et de chaque rampe, et dit
 ce qui n'a pas pu aller sur la plaque à cette échelle (escalier trop petit,
 dôme sans place dans son local, porte sans triangle).
@@ -207,7 +209,7 @@ dôme sans place dans son local, porte sans triangle).
   trop de locaux n'ont pas pu recevoir leur numéro.
 - `--plateau 250x210` : taille maximale de la plaque, en mm (200 × 200 par défaut).
 - `--eprouvette` : plaque d'essai (hauteurs de murs, passages, points braille,
-  écart et hauteur des stries) à imprimer et toucher avant le premier plan ;
+  écart et hauteur des stries, taille des lettres) à imprimer et toucher avant le premier plan ;
   `--hauteur-murs`, `--hauteur-stries` et `--hauteur-points` règlent ensuite
   le plan.
 - `--pdf` : légende aussi en PDF accessible, vérifiée par veraPDF s'il est installé (comme pour l'audit).
@@ -271,7 +273,7 @@ automatisé* de chaque rapport généré.
 audit-ifc-rgaa/
 ├── README.md                    Ce document
 ├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.6.0)
+├── VERSION                      Version courante (0.6.1)
 ├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
 ├── PLAN_TACTILE.md              Plan tactile : dimensions, sources, choix à valider
 ├── LICENSE                      GPL-3.0 pour le code

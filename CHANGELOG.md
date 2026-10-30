@@ -5,6 +5,32 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.6.1] — 2026-10-30
+
+### Ajouté
+
+- **Lettres ordinaires en relief à côté du braille** : tout ce qui est écrit
+  sur la plaque l'est deux fois, en braille et en lettres ou chiffres
+  ordinaires en relief (5 mm de haut, 0,8 mm de relief), pour qu'on la lise
+  qu'on voie, qu'on voie mal ou pas du tout. Titre (« PLAN 1 » après le
+  braille), numéros des locaux (chiffres, braille dessous ; braille à gauche
+  dans un local étroit), longueur de la barre d'échelle. Police bâton en
+  majuscules dessinée dans l'outil, sans dépendance de plus.
+- La légende donne le braille (en caractères Unicode) à côté du texte
+  ordinaire : titre, échelle, numéros de l'éprouvette.
+- Éprouvette de 150 × 140 mm : numéros en chiffres et en braille, titre
+  « ÉPROUVETTE », sixième rangée pour la taille des lettres (4, 6 et 8 mm).
+- Conseil dans la légende : changer de couleur de filament juste au-dessus
+  du socle pour mieux voir le relief.
+
+### Changé
+
+- Les étiquettes des locaux sont plus grandes (chiffres et braille). Un
+  local trop petit pour les deux garde son numéro en braille seul, et la
+  légende le dit ; l'échelle conseillée vise des étiquettes complètes.
+- Éprouvette découpée par PrusaSlicer 2.7.2 sans erreur : 5 h 06, environ
+  33 g de PLA en couches de 0,12 mm.
+
 ## [0.6.0] — 2026-10-30
 
 ### Ajouté
