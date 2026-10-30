@@ -19,6 +19,13 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   les déclare pas ; lus aussi dans les attributs de la volée et dans
   `Pset_StairFlightCommon`. Contrôle volée par volée.
 - Volées sans escalier parent contrôlées ; largeur non mesurée signalée.
+- **Essais sur des maquettes réelles** (Revit 2011 à 2024, ArchiCAD ; IFC2X3
+  et IFC4) : volées droites mesurées égales aux valeurs déclarées, rampes en
+  biais mesurées de façon cohérente. Deux erreurs trouvées et corrigées :
+  attributs de volée écrits en pieds par Revit 2011-2012 (marches lues à
+  58 cm), désormais lus après les Pset et écartés s'ils sont invraisemblables ;
+  giron mesuré entre centres faussé par une dernière marche sans nez,
+  désormais mesuré entre les nez de marche.
 - Tests `tests/test_escaliers.py`, dont les cas trouvés en relecture :
   marche d'exactement 16 ou 17 cm à toute altitude, valeur déclarée
   négative, escalier en L, limon seul, valeur au millimètre près du seuil.

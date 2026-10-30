@@ -73,14 +73,16 @@ def test_giron_trop_court(tmp_path):
 
 
 def test_valeur_declaree_prioritaire(tmp_path):
-    # La hauteur déclarée (15 cm) l'emporte sur la géométrie (17 cm).
+    # La hauteur déclarée (15 cm) l'emporte sur la géométrie (17 cm), et le
+    # rapport donne les deux.
     m = Maquette()
     esc = m.escalier_dessine(marches=8, hauteur=0.17, giron=0.30, largeur=1.30)
     import ifcopenshell.api.pset
     pset = ifcopenshell.api.pset.add_pset(m.model, product=esc, name="Pset_StairCommon")
     ifcopenshell.api.pset.edit_pset(m.model, pset=pset, properties={"RiserHeight": 0.15})
     rapport = m.auditer(tmp_path, NEUF)
-    assert "Hauteur de marche déclarée conforme : 0,15 m." in constats(rapport)
+    assert ("Hauteur de marche déclarée conforme : 0,15 m (la géométrie donne 0,17 m)."
+            in constats(rapport))
 
 
 def test_volees_decomposees(tmp_path):
@@ -221,6 +223,45 @@ def test_valeur_au_millimetre_pres_du_seuil(tmp_path):
     ifcopenshell.api.pset.edit_pset(m.model, pset=pset, properties={"TreadLength": 0.2794})
     rapport = m.auditer(tmp_path, NEUF)
     assert rapport.non_conformites[0].constat == "Giron déclaré : 0,279 m."
+
+
+def test_attributs_en_pieds_ecartes(tmp_path):
+    # Cas réel (exports Revit 2011-2012, IFC2X3) : les attributs de la volée
+    # sont écrits en pieds dans un projet en mètres (0,5767 pour 17,6 cm),
+    # alors que Pset_StairFlightCommon est juste. Le Pset l'emporte ; seul,
+    # l'attribut est écarté et la géométrie prend le relais.
+    import ifcopenshell.api.pset
+    m = Maquette()
+    esc = m._creer("IfcStair", "Escalier Revit")
+    m._ranger_contenu(esc)
+    volee = m.escalier_dessine(10, 0.165, 0.28, 1.10, nom="Volée 1", classe="IfcStairFlight")
+    volee.RiserHeight, volee.TreadLength = 0.5413, 0.9186   # 0,165 m et 0,28 m, en pieds
+    import ifcopenshell.api.aggregate as agg
+    agg.assign_object(m.model, products=[volee], relating_object=esc)
+    rapport = m.auditer(tmp_path, EXISTANT)
+    assert "Hauteur de marche mesurée sur la géométrie conforme : 0,17 m." in constats(rapport)
+    assert any("hors de toute vraisemblance" in r for r in rapport.remarques)
+    pset = ifcopenshell.api.pset.add_pset(m.model, product=volee, name="Pset_StairFlightCommon")
+    ifcopenshell.api.pset.edit_pset(m.model, pset=pset, properties={"RiserHeight": 0.165, "TreadLength": 0.28})
+    rapport = m.auditer(tmp_path, EXISTANT)
+    assert "Hauteur de marche déclarée conforme : 0,17 m." in constats(rapport)
+    assert not any("hors de toute vraisemblance" in r for r in rapport.remarques)
+
+
+def test_giron_mesure_aux_nez_de_marche(tmp_path):
+    # Cas réel (export Revit) : les girons débordent de 2,5 cm en nez de
+    # marche, sauf le dernier. Mesuré entre les centres, le giron tombait à
+    # 24,1 cm pour 25,4 cm ; entre les nez, il est juste.
+    h, g, n, nez = 0.17, 0.30, 8, 0.025
+    pieces = [((0.0, 0.0, 0.0), (1.0, 0.0), _profil_marches(n, h, g), 1.20)]
+    for i in range(n):
+        z, avant = (i + 1) * h, i * g - (nez if i < n - 1 else 0.0)
+        pieces.append(((0.0, 0.0, 0.0), (1.0, 0.0),
+                       [(avant, z), ((i + 1) * g, z), ((i + 1) * g, z + 0.03), (avant, z + 0.03)], 1.20))
+    m = Maquette()
+    m.objet_profils("IfcStair", pieces, "Escalier à nez de marche")
+    rapport = m.auditer(tmp_path, EXISTANT)
+    assert "Giron mesuré sur la géométrie conforme : 0,30 m." in constats(rapport)
 
 
 def test_escalier_sans_donnees(tmp_path):

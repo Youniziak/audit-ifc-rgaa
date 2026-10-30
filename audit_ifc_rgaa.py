@@ -252,7 +252,11 @@ def _geometrie_escalier(element) -> Optional[dict]:
         return None  # centres non alignés : volée tournante
 
     hauteurs = [b[0] - a[0] for a, b in zip(marches, marches[1:])]
-    girons = [(b[1] - a[1]) * ux + (b[2] - a[2]) * uy for a, b in zip(marches, marches[1:])]
+    # Giron : écart entre les bords avant (nez) de deux marches successives,
+    # et non entre leurs centres, que fausse une dernière marche plus courte
+    # (cas réel d'un export Revit : 24,1 cm lus pour 25,4 cm).
+    nez = [min(p[0] * ux + p[1] * uy for p in sommets) for _, _, _, sommets in marches]
+    girons = [b - a for a, b in zip(nez, nez[1:])]
     # Dans une volée droite, les marches sont égales : des valeurs dispersées
     # ou invraisemblables signalent une géométrie que l'outil ne comprend pas.
     if (max(hauteurs) - min(hauteurs) > 0.015 or max(girons) - min(girons) > 0.03
@@ -271,6 +275,14 @@ def _geometrie_escalier(element) -> Optional[dict]:
     }
 
 
+def _origine(origine: str, valeur: str, verdict: str = "") -> str:
+    """« déclarée conforme : 0,16 m (la géométrie donne 0,17 m) » : la
+    remarque sur la géométrie passe après la valeur."""
+    principal, _, parenthese = origine.partition(" (")
+    texte = f"{principal}{' ' + verdict if verdict else ''} : {valeur}"
+    return f"{texte} ({parenthese}" if parenthese else texte
+
+
 def _metres_precis(valeur: float, seuil: float) -> str:
     """Comme metres(), avec un millimètre de plus quand l'arrondi au centimètre
     rendrait la valeur égale au seuil (« 0,28 m » non conforme à « 0,28 m »)."""
@@ -279,19 +291,36 @@ def _metres_precis(valeur: float, seuil: float) -> str:
     return metres(valeur)
 
 
-def _valeur_escalier(objets, attribut: str, scale: float) -> Optional[float]:
-    """RiserHeight ou TreadLength déclarés : attribut de la volée (IFC4), puis
-    Pset_StairFlightCommon, puis Pset_StairCommon, sur la volée puis l'escalier."""
+# Valeurs vraisemblables, en mètres : au-delà, c'est une erreur d'unité.
+_BORNES_ESCALIER = {"RiserHeight": (0.05, 0.30), "TreadLength": (0.15, 0.60)}
+
+
+def _valeur_escalier(objets, attribut: str, scale: float) -> tuple[Optional[float], int]:
+    """(valeur déclarée en mètres, nombre de valeurs écartées) pour RiserHeight
+    ou TreadLength.
+
+    Ordre de lecture : Pset_StairFlightCommon puis Pset_StairCommon, sur la
+    volée puis sur l'escalier, et en dernier les attributs de la volée. Une
+    valeur hors des bornes vraisemblables est écartée : des exports Revit
+    réels (2011-2012, IFC2X3) écrivent ces attributs en pieds dans un projet
+    en mètres (0,5767 pour une marche de 17,6 cm)."""
+    mini, maxi = _BORNES_ESCALIER[attribut]
+    candidates = []
     for objet in objets:
-        valeur = getattr(objet, attribut, None) if objet.is_a("IfcStairFlight") else None
-        if isinstance(valeur, (int, float)) and valeur > 0:
-            return float(valeur) * scale
         psets = ifcopenshell.util.element.get_psets(objet)
         for nom_pset in ("Pset_StairFlightCommon", "Pset_StairCommon"):
-            valeur = psets.get(nom_pset, {}).get(attribut)
-            if isinstance(valeur, (int, float)) and valeur > 0:
-                return float(valeur) * scale
-    return None
+            candidates.append(psets.get(nom_pset, {}).get(attribut))
+    for objet in objets:
+        if objet.is_a("IfcStairFlight"):
+            candidates.append(getattr(objet, attribut, None))
+    ecartees = 0
+    for valeur in candidates:
+        if isinstance(valeur, (int, float)) and valeur > 0:
+            metres_ = float(valeur) * scale
+            if mini <= metres_ <= maxi:
+                return metres_, ecartees
+            ecartees += 1
+    return None, ecartees
 
 
 def auditer_escaliers(ifc_file, scale: float, rapport: RapportAudit) -> None:
@@ -315,7 +344,7 @@ def auditer_escaliers(ifc_file, scale: float, rapport: RapportAudit) -> None:
     orphelines = [v for v in ifc_file.by_type("IfcStairFlight")
                   if not ifcopenshell.util.element.get_aggregate(v)]
     rapport.elements_audites["Escaliers"] = len(escaliers) + len(orphelines)
-    sans_mesure = sans_largeur = 0
+    sans_mesure = sans_largeur = invraisemblables = 0
 
     for esc in list(escaliers) + orphelines:
         volees = [e for e in ifcopenshell.util.element.get_decomposition(esc)
@@ -330,9 +359,14 @@ def auditer_escaliers(ifc_file, scale: float, rapport: RapportAudit) -> None:
 
             mesures = {}
             for cle, attribut in (("hauteur", "RiserHeight"), ("giron", "TreadLength")):
-                declaree = _valeur_escalier(objets, attribut, scale)
+                declaree, ecartees = _valeur_escalier(objets, attribut, scale)
+                if ecartees and declaree is None:
+                    invraisemblables += 1
                 if declaree is not None:
-                    mesures[cle] = (declaree, "déclaré" if cle == "giron" else "déclarée")
+                    origine = "déclaré" if cle == "giron" else "déclarée"
+                    if geo is not None and abs(geo[cle] - declaree) > 0.01:
+                        origine += f" (la géométrie donne {metres(geo[cle])})"
+                    mesures[cle] = (declaree, origine)
                 elif geo is not None:
                     mesures[cle] = (geo[cle], "mesuré sur la géométrie" if cle == "giron"
                                     else "mesurée sur la géométrie")
@@ -357,18 +391,18 @@ def auditer_escaliers(ifc_file, scale: float, rapport: RapportAudit) -> None:
             if "giron" in mesures:
                 giron, origine = mesures["giron"]
                 if giron < ref.escalier_giron_min - 0.0005:
-                    ecart(f"Giron {origine} : {_metres_precis(giron, ref.escalier_giron_min)}.",
+                    ecart(f"Giron {_origine(origine, _metres_precis(giron, ref.escalier_giron_min))}.",
                           f"Giron d'au moins {metres(ref.escalier_giron_min)}.")
                 else:
-                    constat_ok(f"Giron {origine} conforme : {metres(giron)}.")
+                    constat_ok(f"Giron {_origine(origine, metres(giron), 'conforme')}.")
             if "hauteur" in mesures:
                 hauteur, origine = mesures["hauteur"]
                 if hauteur > ref.escalier_hauteur_marche_max + 0.0005:
-                    ecart(f"Hauteur de marche {origine} : "
-                          f"{_metres_precis(hauteur, ref.escalier_hauteur_marche_max)}.",
+                    ecart(f"Hauteur de marche "
+                          f"{_origine(origine, _metres_precis(hauteur, ref.escalier_hauteur_marche_max))}.",
                           f"Hauteur de marche de {metres(ref.escalier_hauteur_marche_max)} au plus.")
                 else:
-                    constat_ok(f"Hauteur de marche {origine} conforme : {metres(hauteur)}.")
+                    constat_ok(f"Hauteur de marche {_origine(origine, metres(hauteur), 'conforme')}.")
             if "largeur" in mesures:
                 largeur, origine = mesures["largeur"]
                 if largeur < ref.escalier_largeur_min - 0.005:
@@ -389,6 +423,12 @@ def auditer_escaliers(ifc_file, scale: float, rapport: RapportAudit) -> None:
             f"Escalier non contrôlé pour {sans_mesure} volée(s) : ni hauteur de marche ni "
             "giron déclarés (Pset_StairFlightCommon, Pset_StairCommon), ni géométrie de "
             "volée droite exploitable"
+        )
+    if invraisemblables:
+        rapport.remarques.append(
+            f"Valeur de hauteur de marche ou de giron déclarée hors de toute vraisemblance "
+            f"écartée pour {invraisemblables} cas (erreur d'unité probable dans l'export) : "
+            "la géométrie a été utilisée quand elle était exploitable"
         )
     if sans_largeur:
         rapport.remarques.append(
