@@ -349,11 +349,11 @@
 
 <header class="site-header" id="haut">
   <div class="wrap">
-    <a class="brand" href="#contenu" aria-label="Exylia Project, audit-ifc-rgaa, version 0.3">
+    <a class="brand" href="#contenu" aria-label="Exylia Project, audit-ifc-rgaa, version 0.4.1">
       <span class="signature">Exylia Project</span>
       <span class="brand-line">
         <span class="mark">audit-ifc-rgaa</span>
-        <span class="ver">v0.3</span>
+        <span class="ver">v0.4.1</span>
       </span>
     </a>
     <a class="skip" href="#titre-principal">Aller au contenu principal</a>
@@ -454,7 +454,7 @@
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow" aria-hidden="true"><span class="num">02</span> Seuils vérifiés</p>
-        <h2 id="t-seuils" aria-label="Partie 2, Seuils vérifiés. Six critères dimensionnels, extraits du modèle.">Six critères dimensionnels, extraits du modèle</h2>
+        <h2 id="t-seuils" aria-label="Partie 2, Seuils vérifiés. Neuf critères dimensionnels, extraits du modèle.">Neuf critères dimensionnels, extraits du modèle</h2>
         <p class="lede">Chaque valeur est lue dans le fichier IFC et comparée au texte choisi par l'auditeur : ERP neuf ou ERP existant.</p>
       </div>
       <ul class="bp-grid">
@@ -541,6 +541,56 @@
             <p class="bp-el">Manœuvre</p>
             <p class="bp-crit">Demi-tour fauteuil</p>
             <p class="bp-val"><span class="bp-tag">Les deux</span> Ø 1,50 m</p>
+          </div>
+        </li>
+        <li tabindex="0" aria-label="Critère : porte. Espace de manœuvre devant la porte, 1,70 mètre du côté où l'on pousse, 2,20 mètres du côté où l'on tire, pour un ERP neuf comme existant.">
+          <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
+            <line class="obj" x1="20" y1="72" x2="95" y2="72"/>
+            <line class="obj" x1="145" y1="72" x2="220" y2="72"/>
+            <rect class="faint" x="70" y="32" width="100" height="36"/>
+            <rect class="faint" x="70" y="76" width="100" height="50"/>
+            <line class="cote" x1="190" y1="32" x2="190" y2="72"/>
+            <line class="cote" x1="185" y1="32" x2="195" y2="32"/>
+            <line class="cote" x1="190" y1="72" x2="190" y2="126"/>
+            <line class="cote" x1="185" y1="72" x2="195" y2="72"/>
+            <line class="cote" x1="185" y1="126" x2="195" y2="126"/>
+          </svg>
+          <div class="bp-data" aria-hidden="true">
+            <p class="bp-el">Porte</p>
+            <p class="bp-crit">Espace de manœuvre (les deux textes)</p>
+            <p class="bp-val"><span class="bp-tag">Pousser</span> ≥ 1,70 m</p>
+            <p class="bp-val"><span class="bp-tag">Tirer</span> ≥ 2,20 m</p>
+          </div>
+        </li>
+        <li tabindex="0" aria-label="Critère : ascenseur. Un fauteuil roulant occupé doit tenir dans la cabine : largeur 0,75 mètre, longueur 1,25 mètre, pour un ERP neuf comme existant.">
+          <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
+            <rect class="obj" x="78" y="22" width="84" height="106"/>
+            <rect class="faint" x="88" y="26" width="64" height="98"/>
+            <line class="cote" x1="88" y1="142" x2="152" y2="142"/>
+            <line class="cote" x1="88" y1="137" x2="88" y2="147"/>
+            <line class="cote" x1="152" y1="137" x2="152" y2="147"/>
+          </svg>
+          <div class="bp-data" aria-hidden="true">
+            <p class="bp-el">Ascenseur</p>
+            <p class="bp-crit">Cabine : un fauteuil occupé doit y tenir (les deux textes)</p>
+            <p class="bp-val"><span class="bp-tag">Largeur</span> ≥ 0,75 m</p>
+            <p class="bp-val"><span class="bp-tag">Longueur</span> ≥ 1,25 m</p>
+          </div>
+        </li>
+        <li tabindex="0" aria-label="Critère : élévateur. Plate-forme en service simple ou opposé : largeur 0,90 mètre, longueur 1,40 mètre, pour un ERP neuf comme existant.">
+          <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
+            <line class="obj" x1="30" y1="128" x2="210" y2="128"/>
+            <rect class="faint" x="84" y="40" width="72" height="88"/>
+            <line class="obj" x1="84" y1="40" x2="156" y2="40"/>
+            <line class="cote" x1="84" y1="142" x2="156" y2="142"/>
+            <line class="cote" x1="84" y1="137" x2="84" y2="147"/>
+            <line class="cote" x1="156" y1="137" x2="156" y2="147"/>
+          </svg>
+          <div class="bp-data" aria-hidden="true">
+            <p class="bp-el">Élévateur</p>
+            <p class="bp-crit">Plate-forme, service simple ou opposé (les deux textes)</p>
+            <p class="bp-val"><span class="bp-tag">Largeur</span> ≥ 0,90 m</p>
+            <p class="bp-val"><span class="bp-tag">Longueur</span> ≥ 1,40 m</p>
           </div>
         </li>
       </ul>

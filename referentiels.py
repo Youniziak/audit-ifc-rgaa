@@ -69,6 +69,13 @@ class Referentiel:
     manoeuvre_porte_pousser: float   # longueur côté où l'on pousse la porte
     manoeuvre_porte_tirer: float     # longueur côté où l'on tire la porte
 
+    # Ascenseurs et élévateurs — article 7.2 (2014) ou 7-2 (2017), annexe 1
+    gabarit_fauteuil_largeur: float     # fauteuil roulant occupé (annexe 1)
+    gabarit_fauteuil_longueur: float
+    elevateur_largeur: float            # plate-forme, service simple ou opposé
+    elevateur_largeur_angle: float      # plate-forme, service en angle
+    elevateur_longueur: float
+
     # Remarque propre au texte, ajoutée aux exigences sur les escaliers
     note_escalier: Optional[str] = None
 
@@ -99,6 +106,11 @@ NEUF = Referentiel(
     espace_usage_longueur=1.30,
     manoeuvre_porte_pousser=1.70,
     manoeuvre_porte_tirer=2.20,
+    gabarit_fauteuil_largeur=0.75,
+    gabarit_fauteuil_longueur=1.25,
+    elevateur_largeur=0.90,
+    elevateur_largeur_angle=1.10,
+    elevateur_longueur=1.40,
 )
 
 EXISTANT = Referentiel(
@@ -123,6 +135,11 @@ EXISTANT = Referentiel(
     espace_usage_longueur=1.30,
     manoeuvre_porte_pousser=1.70,
     manoeuvre_porte_tirer=2.20,
+    gabarit_fauteuil_largeur=0.75,
+    gabarit_fauteuil_longueur=1.25,
+    elevateur_largeur=0.90,
+    elevateur_largeur_angle=1.10,
+    elevateur_longueur=1.40,
     note_escalier=(
         "En l'absence de travaux changeant les caractéristiques dimensionnelles "
         "de l'escalier, ses caractéristiques initiales peuvent être conservées."
@@ -130,6 +147,13 @@ EXISTANT = Referentiel(
 )
 
 REFERENTIELS: dict[str, Referentiel] = {r.code: r for r in (NEUF, EXISTANT)}
+
+# Cabine d'ascenseur de type 1 de la norme NF EN 81-70 (largeur × profondeur),
+# la plus petite que la norme prévoit pour un fauteuil roulant. Ce chiffre
+# n'est pas dans les arrêtés : les deux disent seulement que la norme
+# NF EN 81-70:2003 est « réputée satisfaire » à leurs exigences. L'outil s'en
+# sert comme repère « à vérifier », jamais comme minimum réglementaire.
+CABINE_NF_EN_81_70_TYPE_1 = (1.00, 1.25)
 
 
 def referentiel(code: str) -> Referentiel:

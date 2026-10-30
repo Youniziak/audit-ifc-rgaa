@@ -14,6 +14,8 @@ import ifcopenshell.api.context
 import ifcopenshell.api.project
 import ifcopenshell.api.pset
 import ifcopenshell.api.root
+import ifcopenshell.api.spatial
+import ifcopenshell.api.type
 import ifcopenshell.api.unit
 
 RACINE = Path(__file__).resolve().parent.parent
@@ -43,11 +45,11 @@ class Maquette:
             target_view="MODEL_VIEW", parent=modele,
         )
         site = self._creer("IfcSite", "Site")
-        batiment = self._creer("IfcBuilding", "Bâtiment")
+        self.batiment = self._creer("IfcBuilding", "Bâtiment")
         self.etage = self._creer("IfcBuildingStorey", "RDC")
         ifcopenshell.api.aggregate.assign_object(self.model, products=[site], relating_object=projet)
-        ifcopenshell.api.aggregate.assign_object(self.model, products=[batiment], relating_object=site)
-        ifcopenshell.api.aggregate.assign_object(self.model, products=[self.etage], relating_object=batiment)
+        ifcopenshell.api.aggregate.assign_object(self.model, products=[self.batiment], relating_object=site)
+        ifcopenshell.api.aggregate.assign_object(self.model, products=[self.etage], relating_object=self.batiment)
 
     def _creer(self, classe: str, nom: str):
         return ifcopenshell.api.root.create_entity(self.model, ifc_class=classe, name=nom)
@@ -117,6 +119,46 @@ class Maquette:
         porte.OverallHeight = 2.04
         porte.OperationType = ouverture
         porte.ObjectPlacement = self._placement(x, y, direction)
+
+    def niveau_occupe(self, nom: str) -> None:
+        """Ajoute un étage contenant une pièce, et en fait l'étage courant."""
+        self.etage = self._creer("IfcBuildingStorey", nom)
+        ifcopenshell.api.aggregate.assign_object(
+            self.model, products=[self.etage], relating_object=self.batiment
+        )
+        self.espace(f"Bureau {nom}", 0.0, 0.0, 4.0, 4.0)
+
+    def transport(self, nom: str, type_transport: str = "ELEVATOR",
+                  largeur: float | None = None, profondeur: float | None = None,
+                  sur_le_type: bool = False) -> None:
+        """Ascenseur, élévateur ou escalier mécanique, rangé dans l'étage courant.
+
+        Les dimensions utiles vont dans Pset_TransportElementElevator, sur
+        l'élément ou, si `sur_le_type`, sur son type."""
+        element = ifcopenshell.api.root.create_entity(
+            self.model, ifc_class="IfcTransportElement", name=nom,
+            predefined_type=type_transport,
+        )
+        porteur = element
+        if sur_le_type:
+            porteur = ifcopenshell.api.root.create_entity(
+                self.model, ifc_class="IfcTransportElementType", name=f"Type {nom}",
+                predefined_type=type_transport,
+            )
+            ifcopenshell.api.type.assign_type(
+                self.model, related_objects=[element], relating_type=porteur
+            )
+        if largeur is not None and profondeur is not None:
+            pset = ifcopenshell.api.pset.add_pset(
+                self.model, product=porteur, name="Pset_TransportElementElevator"
+            )
+            ifcopenshell.api.pset.edit_pset(
+                self.model, pset=pset,
+                properties={"ClearWidth": largeur, "ClearDepth": profondeur},
+            )
+        ifcopenshell.api.spatial.assign_container(
+            self.model, products=[element], relating_structure=self.etage
+        )
 
     def _placement(self, x: float, y: float, direction=(1.0, 0.0, 0.0)):
         return self.model.create_entity(

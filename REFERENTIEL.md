@@ -122,6 +122,53 @@ C'est un contrôle de premier niveau : il ne tient compte ni du mobilier, ni de
 la position de la porte le long de la circulation, ni du débattement de la
 porte, et il ne sait pas si un sanitaire est adapté.
 
+## Ascenseurs et élévateurs — article 7-2 (neuf) ou 7.2 (existant), annexe 1
+
+Les deux textes disent que tous les ascenseurs peuvent être utilisés par les
+personnes handicapées, et que les spécifications de la norme NF EN 81-70:2003
+sont « réputées satisfaire » à ces exigences. **Ils ne fixent aucune dimension
+de cabine.** Ils fixent en revanche :
+
+- le gabarit d'un fauteuil roulant occupé, 0,75 × 1,25 m, sur lequel sont
+  établies leurs exigences (annexe 1, identique dans les deux textes) ;
+- la plate-forme des appareils élévateurs verticaux : dimension utile de
+  0,90 × 1,40 m en service simple ou opposé, 1,10 × 1,40 m en service en angle
+  (identique dans les deux textes).
+
+Ce que fait l'outil (depuis la 0.4.1) :
+
+- Il reconnaît les ascenseurs modélisés en `IfcTransportElement` de type
+  `ELEVATOR`, et les élévateurs à leur nom (« élévateur », « plate-forme
+  élévatrice », « platform lift »…). Les monte-charges, reconnus à leur nom,
+  sont exclus : ils ne transportent pas le public.
+- Il lit la largeur et la profondeur utiles déclarées dans
+  `Pset_TransportElementElevator` (`ClearWidth`, `ClearDepth`), sur l'élément
+  ou sur son type. Il n'utilise pas la géométrie, qui peut représenter la
+  cabine, la gaine ou les deux. Sans ces valeurs, l'appareil n'est pas
+  contrôlé, et le rapport le dit.
+- Cabine où le gabarit de 0,75 × 1,25 m ne tient pas : bloquante.
+- Cabine plus petite que 1,00 × 1,25 m : majeure, à vérifier. Ce chiffre est
+  celui du type 1 de la norme NF EN 81-70, la plus petite cabine qu'elle prévoit
+  pour un fauteuil roulant. Il ne vient pas des arrêtés, et la norme est
+  payante : l'outil l'utilise comme repère, pas comme minimum réglementaire.
+- Plate-forme d'élévateur sous 0,90 × 1,40 m : bloquante. Entre 0,90 et
+  1,10 m de large, conforme en service simple ou opposé ; le rapport rappelle
+  l'exigence du service en angle.
+- L'orientation n'est pas vérifiée : une cabine déclarée 1,25 × 1,00 m est
+  traitée comme 1,00 × 1,25 m.
+- Bâtiment à au moins deux niveaux occupés sans ascenseur : un ascenseur est
+  obligatoire si l'effectif admis aux étages supérieurs ou inférieurs atteint
+  cinquante personnes, ou si certaines prestations ne peuvent pas être offertes
+  au rez-de-chaussée, avec des exceptions (enseignement, et pour l'existant
+  certains établissements de 5e catégorie, restaurants et hôtels). Le BIM ne
+  donne pas l'effectif : l'outil le signale dans les limites du rapport, sans
+  en faire une non-conformité. Un escalier mécanique ne compte pas comme
+  ascenseur.
+
+Non vérifié : desserte de tous les étages ouverts au public, commandes,
+signalisation, position des portes de cabine ; pour les élévateurs, type
+d'appareil selon la hauteur de course, porte ou portillon, commandes.
+
 ## Autres espaces de l'annexe 2
 
 - **Espace de manœuvre avec possibilité de demi-tour** : cercle de 1,50 m de
@@ -133,6 +180,8 @@ porte, et il ne sait pas si un sanitaire est adapté.
 
 - [Arrêté du 8 décembre 2014, texte consolidé](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000029893131/)
 - [Arrêté du 8 décembre 2014, article 7 (escaliers et ascenseurs)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034797421)
+- [Arrêté du 8 décembre 2014, annexe 1 (gabarit du fauteuil roulant)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000029895701)
 - [Arrêté du 8 décembre 2014, annexe 2 (espaces de manœuvre)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034797441)
 - [Arrêté du 20 avril 2017, texte consolidé](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000034485459/)
 - [Arrêté du 20 avril 2017, article 7-1 (escaliers)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034485956)
+- [Arrêté du 20 avril 2017, article 7-2 (ascenseurs et élévateurs)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000038437153)

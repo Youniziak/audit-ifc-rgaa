@@ -51,7 +51,9 @@ except ImportError:
 #  sur Légifrance dans REFERENTIEL.md.
 # ─────────────────────────────────────────────────────────────────────────────
 
-from referentiels import Referentiel, metres, pourcent, referentiel
+from referentiels import (
+    CABINE_NF_EN_81_70_TYPE_1, Referentiel, metres, pourcent, referentiel,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -750,6 +752,200 @@ def auditer_manoeuvre_portes(ifc_file, scale: float, rapport: RapportAudit) -> N
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  AUDIT ASCENSEURS ET ÉLÉVATEURS (v0.4.1)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Les arrêtés ne fixent pas de dimensions de cabine : ils renvoient à la norme
+#  NF EN 81-70:2003, « réputée satisfaire » à leurs exigences. Ils fixent en
+#  revanche le gabarit du fauteuil roulant occupé (annexe 1) et la plate-forme
+#  des appareils élévateurs verticaux (article 7.2 ou 7-2).
+
+_MOTS_ELEVATEUR = (
+    "élévateur", "elevateur", "plate-forme élévatrice", "plateforme élévatrice",
+    "platform lift", "wheelchair lift", "monte-personne",
+)
+# Appareils qui ne transportent pas le public : hors du champ de l'article
+_MOTS_MONTE_CHARGE = (
+    "monte-charge", "monte charge", "monte-plat", "monte plat",
+    "goods lift", "freight", "dumbwaiter",
+)
+
+
+def _libelle_element(element) -> str:
+    """Nom, ObjectType, description et nom du type, en minuscules."""
+    parts = [getattr(element, a, None) for a in ("Name", "ObjectType", "Description")]
+    type_elt = ifcopenshell.util.element.get_type(element)
+    if type_elt is not None:
+        parts.append(type_elt.Name)
+    return " | ".join(str(p).lower() for p in parts if p)
+
+
+def _type_transport(element) -> str:
+    """PredefinedType (IFC4) ou OperationType (IFC2X3), lu sur l'élément puis son type."""
+    candidats = [element, ifcopenshell.util.element.get_type(element)]
+    for objet in candidats:
+        for attr in ("PredefinedType", "OperationType"):
+            valeur = getattr(objet, attr, None) if objet is not None else None
+            if valeur and valeur not in ("NOTDEFINED", "USERDEFINED"):
+                return valeur
+    return "NOTDEFINED"
+
+
+def _dimensions_cabine(element, scale: float) -> Optional[tuple[float, float]]:
+    """(largeur, profondeur) utiles déclarées en mètres, ou None.
+
+    Seules les valeurs déclarées comptent : la géométrie d'un ascenseur dans le
+    BIM peut être la cabine, la gaine ou le tout, et l'outil ne sait pas laquelle.
+    """
+    pset = ifcopenshell.util.element.get_psets(element).get("Pset_TransportElementElevator", {})
+    largeur, profondeur = pset.get("ClearWidth"), pset.get("ClearDepth")
+    if not largeur or not profondeur:
+        return None
+    return float(largeur) * scale, float(profondeur) * scale
+
+
+def _niveaux_occupes(ifc_file) -> int:
+    """Nombre d'étages contenant au moins un élément ou un espace."""
+    return sum(
+        1 for etage in ifc_file.by_type("IfcBuildingStorey")
+        if ifcopenshell.util.element.get_decomposition(etage)
+    )
+
+
+def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
+    """Vérifie les cabines d'ascenseur et les plates-formes élévatrices."""
+    ref = rapport.referentiel
+    art = ref.art_ascenseurs
+    gabarit = (ref.gabarit_fauteuil_largeur, ref.gabarit_fauteuil_longueur)
+    type_1 = CABINE_NF_EN_81_70_TYPE_1
+
+    ascenseurs, elevateurs = [], []
+    monte_charges = 0
+    for element in ifc_file.by_type("IfcTransportElement"):
+        libelle = _libelle_element(element)
+        if any(m in libelle for m in _MOTS_MONTE_CHARGE):
+            monte_charges += 1
+        elif any(m in libelle for m in _MOTS_ELEVATEUR):
+            elevateurs.append(element)
+        elif _type_transport(element) == "ELEVATOR":
+            ascenseurs.append(element)
+
+    sans_dimensions = 0
+    controles_asc = controles_elev = angle_a_verifier = 0
+
+    for asc in ascenseurs:
+        dims = _dimensions_cabine(asc, scale)
+        if dims is None:
+            sans_dimensions += 1
+            continue
+        controles_asc += 1
+        petit, grand = sorted(dims)
+        cabine = f"{metres(dims[0])} × {metres(dims[1])}"
+        nom, gid = _nom_lisible(asc), asc.GlobalId
+        if petit < gabarit[0] or grand < gabarit[1]:
+            rapport.non_conformites.append(NonConformite(
+                element_type="Ascenseur", nom=nom, global_id=gid,
+                article=ref.article(f"{art} et annexe 1"),
+                constat=(
+                    f"Cabine de {cabine} : un fauteuil roulant occupé "
+                    f"({metres(gabarit[0])} × {metres(gabarit[1])}) n'y tient pas."
+                ),
+                exigence=(
+                    "Tous les ascenseurs peuvent être utilisés par les personnes "
+                    "handicapées ; les exigences sont établies sur la base d'un "
+                    f"fauteuil roulant occupé de {metres(gabarit[0])} × {metres(gabarit[1])}."
+                ),
+                severite="bloquante",
+            ))
+        elif petit < type_1[0] or grand < type_1[1]:
+            rapport.non_conformites.append(NonConformite(
+                element_type="Ascenseur", nom=nom, global_id=gid,
+                article=ref.article(art),
+                constat=(
+                    f"Cabine de {cabine}, plus petite que le type 1 de la norme "
+                    f"NF EN 81-70 ({metres(type_1[0])} × {metres(type_1[1])})."
+                ),
+                exigence=(
+                    "La norme NF EN 81-70:2003 est réputée satisfaire aux exigences ; "
+                    "en deçà de son type 1, l'usage de l'ascenseur par une personne en "
+                    "fauteuil roulant est à vérifier."
+                ),
+                severite="majeure",
+            ))
+        else:
+            rapport.conformites.append(Conformite(
+                element_type="Ascenseur", nom=nom, global_id=gid,
+                constat=f"Cabine de {cabine}, au moins le type 1 de la norme NF EN 81-70.",
+            ))
+
+    for elev in elevateurs:
+        dims = _dimensions_cabine(elev, scale)
+        if dims is None:
+            sans_dimensions += 1
+            continue
+        controles_elev += 1
+        petit, grand = sorted(dims)
+        plate_forme = f"{metres(dims[0])} × {metres(dims[1])}"
+        nom, gid = _nom_lisible(elev), elev.GlobalId
+        if petit < ref.elevateur_largeur or grand < ref.elevateur_longueur:
+            rapport.non_conformites.append(NonConformite(
+                element_type="Élévateur", nom=nom, global_id=gid,
+                article=ref.article(art),
+                constat=f"Plate-forme de {plate_forme}.",
+                exigence=(
+                    f"Dimension utile de {metres(ref.elevateur_largeur)} × "
+                    f"{metres(ref.elevateur_longueur)} au moins en service simple ou "
+                    f"opposé, {metres(ref.elevateur_largeur_angle)} × "
+                    f"{metres(ref.elevateur_longueur)} en service en angle."
+                ),
+                severite="bloquante",
+            ))
+            continue
+        if petit < ref.elevateur_largeur_angle:
+            angle_a_verifier += 1
+        rapport.conformites.append(Conformite(
+            element_type="Élévateur", nom=nom, global_id=gid,
+            constat=f"Plate-forme de {plate_forme}.",
+        ))
+
+    rapport.elements_audites["Ascenseurs"] = controles_asc
+    rapport.elements_audites["Élévateurs"] = controles_elev
+
+    if monte_charges:
+        rapport.remarques.append(
+            f"{monte_charges} monte-charge(s) exclu(s) du contrôle : appareil(s) "
+            "reconnu(s) par son nom comme ne transportant pas le public"
+        )
+    if sans_dimensions:
+        rapport.remarques.append(
+            f"Dimensions utiles non renseignées pour {sans_dimensions} ascenseur(s) ou "
+            "élévateur(s) (Pset_TransportElementElevator : ClearWidth, ClearDepth) : "
+            "non contrôlé(s)"
+        )
+    if angle_a_verifier:
+        rapport.remarques.append(
+            f"{angle_a_verifier} élévateur(s) de moins de "
+            f"{metres(ref.elevateur_largeur_angle)} de large : conforme(s) en service "
+            "simple ou opposé ; en service en angle, la plate-forme doit mesurer "
+            f"{metres(ref.elevateur_largeur_angle)} × {metres(ref.elevateur_longueur)}"
+        )
+    niveaux = _niveaux_occupes(ifc_file)
+    if niveaux >= 2 and not ascenseurs:
+        remarque = (
+            f"Aucun ascenseur modélisé pour {niveaux} niveaux occupés : un ascenseur "
+            "est obligatoire si l'effectif admis aux étages supérieurs ou inférieurs "
+            "atteint cinquante personnes, ou si certaines prestations ne peuvent pas "
+            f"être offertes au rez-de-chaussée (art. {art}, qui prévoit des exceptions) ; "
+            "effectif et prestations à vérifier"
+        )
+        if elevateurs:
+            remarque += (
+                ". Un élévateur ne remplace un ascenseur obligatoire que dans les "
+                "cas prévus par le texte"
+            )
+        rapport.remarques.append(remarque)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  GÉNÉRATION DU RAPPORT MARKDOWN ACCESSIBLE
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -838,6 +1034,12 @@ def generer_rapport_markdown(rapport: RapportAudit) -> str:
         "englobante de chaque espace ; mobilier, position de la porte le long de la "
         "circulation et débattement de la porte non pris en compte"
     )
+    lignes.append(
+        "- Ascenseurs : desserte de tous les étages ouverts au public, commandes, "
+        "signalisation et position des portes de cabine non vérifiées ; élévateurs : "
+        "type d'appareil selon la hauteur de course, porte ou portillon et commandes "
+        "non vérifiés"
+    )
     for remarque in rapport.remarques:
         lignes.append(f"- {remarque}")
     lignes.append("")
@@ -874,6 +1076,7 @@ def auditer(chemin_ifc: str, ref: Referentiel) -> RapportAudit:
     auditer_circulations(ifc_file, rapport)
     auditer_sanitaires(ifc_file, rapport)
     auditer_manoeuvre_portes(ifc_file, scale, rapport)
+    auditer_ascenseurs(ifc_file, scale, rapport)
 
     return rapport
 
