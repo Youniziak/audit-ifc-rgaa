@@ -10,7 +10,9 @@ commande de COMMANDES, puis remplace dans la page les commandes, leurs
 sorties, la version et la date. Aucune sortie n'est écrite à la main.
 
 Lancer depuis n'importe où :  python3 docs/enregistrer_demo.py
-Il faut ifcopenshell et pytest installés.
+Il faut ifcopenshell, pytest, weasyprint et markdown installés ; si la
+commande verapdf est dans le PATH, la démo montre aussi la vérification
+PDF/UA-1 du rapport.
 
 Auteur : Kévin (Youniziak)
 Licence : GPL-3.0-or-later
@@ -39,7 +41,7 @@ MOIS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
 COMMANDES = [
     ("ls", "ls -C -T 0", 150, 700),
     ("python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc", None, 220, 1000),
-    ("python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc --existant", None, 220, 1100),
+    ("python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc --existant --pdf", None, 220, 1100),
     ("cat exemples/test_erp_avec_espaces_audit.md", None, 55, 1200),
     ("python3 comparaison_terrain.py exemples/test_house.ifc exemples/mesures_exemple.json"
      " --existant --bcf retours_architecte.bcfzip", None, 220, 1000),

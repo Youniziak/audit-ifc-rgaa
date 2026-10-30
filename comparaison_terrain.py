@@ -64,7 +64,7 @@ except ImportError:
 
 from audit_ifc_rgaa import (
     _epaisseur_seuil, _ratio_de_pente, _valeur_typee, ajouter_choix_referentiel,
-    lire_referentiel,
+    ajouter_option_pdf, exporter_pdf_et_verifier, lire_referentiel,
 )
 from referentiels import Referentiel
 
@@ -410,6 +410,7 @@ def main() -> int:
     parser.add_argument("--sortie", "-o", help="Chemin du rapport Markdown.")
     parser.add_argument("--bcf", help="Chemin de sortie pour le fichier BCF (.bcfzip).")
     ajouter_choix_referentiel(parser)
+    ajouter_option_pdf(parser)
     args = parser.parse_args()
     ref = lire_referentiel(parser, args)
 
@@ -447,6 +448,8 @@ def main() -> int:
     print(f"  Écarts significatifs BIM/terrain : {n_sig}")
     print(f"  Non-conformités réglementaires : {n_nc}")
 
+    if args.pdf:
+        return exporter_pdf_et_verifier(rapport_md, sortie_md)
     return 0
 
 

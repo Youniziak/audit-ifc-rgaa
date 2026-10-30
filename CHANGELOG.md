@@ -5,6 +5,22 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.5.0] — 2026-10-30
+
+### Ajouté
+
+- **Rapport en PDF accessible** : option `--pdf` de `audit_ifc_rgaa.py` et de
+  `comparaison_terrain.py`. Le module `pdf_accessible.py` convertit le
+  rapport Markdown en HTML, puis en PDF balisé avec WeasyPrint, variante
+  PDF/UA-1 : arbre de structure (titres, listes, liens), langue, titre
+  affiché, polices incorporées.
+- Vérification par veraPDF (profil PDF/UA-1) quand la commande `verapdf` est
+  installée ; sans elle, l'outil le dit et ne déclare pas le PDF conforme.
+  Le rapport d'exemple passe ce profil.
+- `requirements-pdf.txt` (WeasyPrint, markdown), à part pour ne pas alourdir
+  l'installation de base.
+- Tests `tests/test_pdf.py` (le test veraPDF est sauté si veraPDF manque).
+
 ## [0.4.3] — 2026-10-30
 
 ### Ajouté
@@ -226,10 +242,6 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   audit complémentaire sur site
 
 ## À venir
-
-### [0.5.0]
-
-- Export du rapport en PDF accessible (PDF/UA conforme ISO 14289)
 
 ### [0.6.0]
 

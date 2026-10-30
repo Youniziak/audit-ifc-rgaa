@@ -1,0 +1,4 @@
+# Export du rapport en PDF accessible (option --pdf)
+# Sur Termux, installer d'abord : pkg install pango python-pillow
+weasyprint>=62
+markdown>=3.4

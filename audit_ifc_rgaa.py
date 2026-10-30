@@ -1616,6 +1616,41 @@ def lire_referentiel(parser: argparse.ArgumentParser, args) -> Referentiel:
     return referentiel(args.referentiel)
 
 
+def ajouter_option_pdf(parser: argparse.ArgumentParser) -> None:
+    """Option --pdf, commune à l'audit et à la comparaison terrain."""
+    parser.add_argument(
+        "--pdf", action="store_true",
+        help="Produit aussi le rapport en PDF accessible (balisé, variante PDF/UA-1), "
+             "à côté du rapport Markdown. Demande WeasyPrint ; vérifié par veraPDF "
+             "s'il est installé.",
+    )
+
+
+def exporter_pdf_et_verifier(texte_md: str, sortie_md: Path) -> int:
+    """Écrit le PDF à côté du Markdown, le vérifie si veraPDF est installé.
+
+    Retourne 0, ou 1 si l'export est impossible ou si le PDF n'est pas conforme."""
+    from pdf_accessible import exporter_pdf, verifier_pdf_ua
+    chemin_pdf = sortie_md.with_suffix(".pdf")
+    try:
+        exporter_pdf(texte_md, chemin_pdf)
+    except RuntimeError as erreur:
+        sys.stderr.write(f"Erreur : {erreur}\n")
+        return 1
+    print(f"PDF accessible : {chemin_pdf}")
+    verification = verifier_pdf_ua(chemin_pdf)
+    if verification is None:
+        print("  Vérification PDF/UA-1 : veraPDF n'est pas installé, PDF non vérifié")
+        return 0
+    conforme, detail = verification
+    if conforme:
+        print("  Vérification PDF/UA-1 (veraPDF) : conforme")
+        return 0
+    print("  Vérification PDF/UA-1 (veraPDF) : NON conforme")
+    print(detail)
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Audit d'accessibilité bâti depuis un fichier IFC.",
@@ -1627,6 +1662,7 @@ def main() -> int:
              "Par défaut : <fichier>_audit.md à côté du fichier source.",
     )
     ajouter_choix_referentiel(parser)
+    ajouter_option_pdf(parser)
     args = parser.parse_args()
     ref = lire_referentiel(parser, args)
 
@@ -1650,6 +1686,8 @@ def main() -> int:
     print(f"  Non-conformités : {len(rapport.non_conformites)}")
     print(f"  Taux de conformité : {_taux(rapport)}")
 
+    if args.pdf:
+        return exporter_pdf_et_verifier(md, sortie)
     return 0
 
 
