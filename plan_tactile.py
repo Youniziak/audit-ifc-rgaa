@@ -228,20 +228,61 @@ def lire_maillages(ifc_file, elements) -> dict[int, Maillage]:
     return maillages
 
 
+def _composantes(maillage: Maillage) -> np.ndarray:
+    """Numéro de solide de chaque face : les faces reliées par des sommets
+    communs (à 0,01 mm près) forment un même solide."""
+    _, sommet = np.unique(np.round(maillage.sommets, 5), axis=0, return_inverse=True)
+    sommet = np.asarray(sommet).ravel()
+    faces = sommet[maillage.faces]
+    etiquette = np.arange(int(sommet.max()) + 1 if len(sommet) else 0)
+    while True:
+        plus_petit = etiquette[faces].min(axis=1)
+        nouvelle = etiquette.copy()
+        for j in range(3):
+            np.minimum.at(nouvelle, faces[:, j], plus_petit)
+        nouvelle = nouvelle[nouvelle]
+        if np.array_equal(nouvelle, etiquette):
+            break
+        etiquette = nouvelle
+    return etiquette[faces[:, 0]]
+
+
 def coupe(maillage: Maillage, z: float):
     """Section horizontale du maillage à l'altitude z (polygones, mètres).
 
-    Pour un maillage fermé, les segments de coupe forment des boucles ; les
-    faces imbriquées sont prises en pair-impair (un trou dans un poteau creux
-    reste un trou). Pour un maillage ouvert, le contour est épaissi d'un
-    centimètre et rempli."""
+    Un élément IFC peut être fait de plusieurs solides qui se chevauchent
+    (les couches d'une cloison, le cadre et le vitrage d'une fenêtre) : chacun
+    est coupé à part, puis les sections sont réunies. Dans un solide fermé,
+    les segments de coupe forment des boucles ; les faces imbriquées sont
+    prises en pair-impair (un trou dans un poteau creux reste un trou). Pour
+    un maillage ouvert, le contour est épaissi d'un centimètre et rempli."""
     z = z + 1.234e-6  # évite les sommets exactement dans le plan
     tri = maillage.sommets[maillage.faces]  # (m, 3, 3)
     s = tri[:, :, 2] - z
     coupees = (s.min(axis=1) < 0) & (s.max(axis=1) > 0)
     if not coupees.any():
         return None
-    tri, s = tri[coupees], s[coupees]
+    toutes = _composantes(maillage)
+    solides = toutes[coupees]
+    if len(np.unique(solides)) > 1:
+        # Volume signé de chaque solide : négatif pour une coque tournée vers
+        # l'intérieur, qui décrit un vide (le creux d'un poteau, d'un fourreau).
+        v = maillage.sommets[maillage.faces]
+        volume = np.einsum("ij,ij->i", v[:, 0], np.cross(v[:, 1], v[:, 2])) / 6
+        pleins, vides = [], []
+        for k in np.unique(solides):
+            garde = solides == k
+            section = _coupe_d_un_solide(tri[coupees][garde], s[coupees][garde])
+            if section is not None and not section.is_empty:
+                (vides if volume[toutes == k].sum() < 0 else pleins).append(section)
+        pleins, vides = unary_union(pleins), unary_union(vides)
+        resultat = pleins.symmetric_difference(vides) if not vides.is_empty else pleins
+        return None if resultat.is_empty else resultat
+    return _coupe_d_un_solide(tri[coupees], s[coupees])
+
+
+def _coupe_d_un_solide(tri: np.ndarray, s: np.ndarray):
+    """Section d'un seul solide, d'après ses triangles coupés par le plan."""
     segments = []
     for i, j in ((0, 1), (1, 2), (2, 0)):
         croise = (s[:, i] < 0) != (s[:, j] < 0)
@@ -263,7 +304,9 @@ def coupe(maillage: Maillage, z: float):
             lignes.append(LineString(valides))
     if not lignes:
         return None
-    faces = list(shapely.polygonize(lignes).geoms)
+    # Les segments sont d'abord coupés là où ils se croisent (noeuds) : sans
+    # cela, polygonize perd les faces que deux boucles croisées délimitent.
+    faces = list(shapely.polygonize([unary_union(lignes)]).geoms)
     if faces:
         # polygonize rend des faces disjointes (un anneau, puis son trou comme
         # face à part) : la règle pair-impair porte sur leurs contours.
@@ -304,30 +347,92 @@ def _polygones(geom) -> list:
     return []
 
 
-def _pente(maillage: Maillage) -> Optional[tuple[float, float]]:
-    """Gradient (dz/dx, dz/dy) du plan incliné d'une rampe, par moindres carrés
-    sur les faces tournées vers le haut qui ne sont pas horizontales ; None
-    si la rampe ne monte pas (moins de 0,5 %)."""
+def _faces_du_dessus(maillage: Maillage, cos_min: float):
+    """Triangles tournés vers le haut (cosinus de la normale avec la verticale
+    au moins `cos_min`) : (triangles, normales unitaires, aires)."""
     tri = maillage.sommets[maillage.faces]
     n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
     norme = np.linalg.norm(n, axis=1)
-    ok = norme > 0
-    tri, n, norme = tri[ok], n[ok], norme[ok]
-    cz = n[:, 2] / norme
-    inclinees = (cz > math.cos(math.radians(45))) & (cz < 0.99995)
-    if not inclinees.any():
+    ok = norme > 1e-12
+    tri, n, norme = tri[ok], n[ok] / norme[ok, None], norme[ok] / 2
+    dessus = n[:, 2] >= cos_min
+    return tri[dessus], n[dessus], norme[dessus]
+
+
+def _pans(maillage: Maillage) -> list:
+    """Pans plans du dessus d'une rampe : (polygone en mètres, gx, gy, c,
+    z bas, z haut), le pan suivant z = gx·x + gy·y + c.
+
+    Une rampe d'un seul tenant peut tourner (en L, en demi-tour) : chaque
+    partie en pente et chaque palier forme son propre pan. Les faces plus
+    raides que 25 % (bords, chanfreins) ne comptent pas."""
+    tri, n, aire = _faces_du_dessus(maillage, 1 / math.hypot(1, 0.25))
+    if len(tri) == 0:
+        return []
+    g = -n[:, :2] / n[:, 2:3]
+    centres = tri.mean(axis=1)
+    cst = centres[:, 2] - g[:, 0] * centres[:, 0] - g[:, 1] * centres[:, 1]
+    groupes: list[list[int]] = []
+    for i in np.argsort(-aire):
+        for grp in groupes:
+            j = grp[0]
+            if (abs(g[i, 0] - g[j, 0]) < 0.004 and abs(g[i, 1] - g[j, 1]) < 0.004
+                    and abs(centres[i, 2] - (g[j, 0] * centres[i, 0] + g[j, 1] * centres[i, 1] + cst[j])) < 0.01):
+                grp.append(i)
+                break
+        else:
+            groupes.append([i])
+    pans = []
+    for grp in groupes:
+        poly = unary_union(shapely.polygons(tri[grp][:, :, :2])).buffer(0)
+        if poly.is_empty or poly.area < 1e-4:
+            continue
+        poids = aire[grp]
+        gx = float(np.average(g[grp, 0], weights=poids))
+        gy = float(np.average(g[grp, 1], weights=poids))
+        c = float(np.average(cst[grp], weights=poids))
+        zs = tri[grp][:, :, 2]
+        pans.append((poly, gx, gy, c, float(zs.min()), float(zs.max())))
+    return pans
+
+
+def _marches(maillage: Maillage) -> list:
+    """Faces horizontales du dessus regroupées par altitude (tranches de
+    5 mm) : (z, centre x, centre y, polygone), de la plus basse à la plus haute."""
+    tri, _, aire = _faces_du_dessus(maillage, 0.995)
+    if len(tri) == 0:
+        return []
+    c = tri.mean(axis=1)
+    cles = np.round(c[:, 2] * 200).astype(int)
+    marches = []
+    for k in np.unique(cles):
+        garde = cles == k
+        centre = np.average(c[garde], axis=0, weights=aire[garde])
+        poly = unary_union(shapely.polygons(tri[garde][:, :, :2])).buffer(0)
+        marches.append((float(centre[2]), float(centre[0]), float(centre[1]), poly))
+    return sorted(marches, key=lambda t: t[0])
+
+
+def _axe_des_marches(maillage: Maillage) -> Optional[tuple[float, float]]:
+    """Direction (unitaire) du nez des marches, d'après les marches allongées
+    (une fois et demie plus larges que profondes), ou None."""
+    angles = []
+    for _, _, _, poly in _marches(maillage):
+        if poly.is_empty or poly.area < 0.01:
+            continue
+        pts = np.asarray(poly.minimum_rotated_rectangle.exterior.coords)
+        if len(pts) < 4:
+            continue
+        a, b = pts[1] - pts[0], pts[2] - pts[1]
+        la, lb = np.hypot(*a), np.hypot(*b)
+        if min(la, lb) <= 0 or max(la, lb) < 1.5 * min(la, lb):
+            continue
+        long_cote = a if la > lb else b
+        angles.append(2 * math.atan2(long_cote[1], long_cote[0]))
+    if not angles:
         return None
-    c = tri[inclinees].mean(axis=1)
-    poids = norme[inclinees] * cz[inclinees]
-    if len(c) < 1:
-        return None
-    # Chaque face donne sa propre pente (normale) ; moyenne pondérée par l'aire.
-    nx, ny, nz = (n[inclinees] / norme[inclinees, None]).T
-    gx = np.average(-nx / nz, weights=poids)
-    gy = np.average(-ny / nz, weights=poids)
-    if math.hypot(gx, gy) < 0.005:
-        return None
-    return float(gx), float(gy)
+    t = math.atan2(sum(math.sin(x) for x in angles), sum(math.cos(x) for x in angles)) / 2
+    return math.cos(t), math.sin(t)
 
 
 def _sens_de_montee(maillage: Maillage) -> Optional[tuple[float, float]]:
@@ -335,32 +440,25 @@ def _sens_de_montee(maillage: Maillage) -> Optional[tuple[float, float]]:
 
     Les marches sont les faces horizontales tournées vers le haut, regroupées
     par altitude (tranches de 5 mm). Le sens va du centre de la marche la plus
-    basse à celui de la plus haute ; si les centres s'écartent de plus de
-    0,15 m de cette ligne (volée tournante, escalier à paliers d'un seul
-    tenant), le sens n'est pas donné."""
-    tri = maillage.sommets[maillage.faces]
-    n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
-    norme = np.linalg.norm(n, axis=1)
-    ok = norme > 0
-    tri, n, norme = tri[ok], n[ok], norme[ok]
-    haut = n[:, 2] / norme > 0.995
-    if haut.sum() < 3:
+    basse à celui de la plus haute (0,20 m au moins). À trois marches ou plus,
+    si les centres s'écartent de plus de 0,15 m de cette ligne (volée
+    tournante, escalier à paliers d'un seul tenant), le sens n'est pas donné ;
+    il ne l'est pas non plus s'il ne croise pas le nez des marches."""
+    marches = _marches(maillage)
+    if len(marches) < 2:
         return None
-    c = tri[haut].mean(axis=1)
-    poids = norme[haut]
-    cles = np.round(c[:, 2] * 200).astype(int)
-    niveaux = np.array([np.average(c[cles == k], axis=0, weights=poids[cles == k])
-                        for k in np.unique(cles)])
-    if len(niveaux) < 3:
-        return None
-    niveaux = niveaux[np.argsort(niveaux[:, 2])]
-    d = niveaux[-1, :2] - niveaux[0, :2]
+    niveaux = np.array([(x, y) for _, x, y, _ in marches])
+    d = niveaux[-1] - niveaux[0]
     longueur = float(np.hypot(*d))
-    if longueur < 0.30:
+    if longueur < 0.20:
         return None
     u = d / longueur
-    ecarts = np.abs((niveaux[:, 0] - niveaux[0, 0]) * u[1] - (niveaux[:, 1] - niveaux[0, 1]) * u[0])
-    if ecarts.max() > 0.15:
+    if len(niveaux) >= 3:
+        ecarts = np.abs((niveaux[:, 0] - niveaux[0, 0]) * u[1] - (niveaux[:, 1] - niveaux[0, 1]) * u[0])
+        if ecarts.max() > 0.15:
+            return None
+    axe = _axe_des_marches(maillage)
+    if axe is not None and abs(u[0] * axe[0] + u[1] * axe[1]) > 0.5:
         return None
     return float(u[0]), float(u[1])
 
@@ -372,19 +470,24 @@ def _sens_de_montee(maillage: Maillage) -> Optional[tuple[float, float]]:
 @dataclass
 class Escalier:
     nom: str
-    volees: list                  # (polygone en mètres, sens de montée ou None)
+    # (polygone en mètres, sens de montée ou None, on y monte depuis ce niveau
+    # (sinon on y descend), direction du nez des marches ou None)
+    volees: list
     mecanique: bool = False
 
     @property
     def forme(self):
-        return unary_union([f for f, _ in self.volees])
+        return unary_union([v[0] for v in self.volees])
 
 
 @dataclass
 class Rampe:
     nom: str
-    forme: object
-    pente: Optional[tuple[float, float]]  # gradient dz/dx, dz/dy
+    forme: object                 # emprise, mètres
+    pans: list                    # voir _pans
+    zmin: float                   # bas et haut du dessus de la rampe
+    zmax: float
+    monte: bool = True            # False : vue du niveau où elle arrive
 
 
 @dataclass
@@ -404,6 +507,7 @@ class Repere:
 class Niveau:
     nom: str
     altitude: float
+    ifc_id: Optional[int] = None  # numéro de l'IfcBuildingStorey dans le fichier
     murs: list = field(default_factory=list)
     poteaux: list = field(default_factory=list)
     parois_basses: list = field(default_factory=list)
@@ -426,25 +530,32 @@ class Niveau:
 
 
 def _nom(element) -> str:
+    """Nom d'un élément pour la légende (texte sûr en Markdown)."""
+    from audit_ifc_rgaa import texte_md
     for attr in ("LongName", "Name"):
         v = getattr(element, attr, None)
-        if v:
-            return str(v)
+        if v and str(v).strip():
+            return texte_md(v)
     return f"{element.is_a()} {element.GlobalId[:8]}"
 
 
 def _nom_local(espace) -> str:
+    from audit_ifc_rgaa import texte_md
     nom, long_nom = getattr(espace, "Name", None), getattr(espace, "LongName", None)
     if nom and long_nom and long_nom != nom:
-        return f"{long_nom} ({nom})"
-    return str(long_nom or nom or f"Local {espace.GlobalId[:8]}")
+        return texte_md(f"{long_nom} ({nom})")
+    return texte_md(long_nom or nom or f"Local {espace.GlobalId[:8]}")
 
 
-def altitudes_des_niveaux(ifc_file) -> list[tuple[object, float]]:
+def altitudes_des_niveaux(ifc_file, maillages: Optional[dict] = None) -> list[tuple[object, float]]:
     """(niveau, altitude du sol en mètres), du plus bas au plus haut.
 
-    L'altitude vient du placement du niveau ; si tous les niveaux ont le même
-    placement mais des Elevation différentes, Elevation est prise."""
+    L'altitude vient du placement du niveau. Si tous les niveaux ont le même
+    placement mais des Elevation différentes, Elevation peut se lire seule ou
+    à partir de ce placement commun, et le bas des murs et des locaux de
+    chaque niveau donne une dernière lecture : on garde celle qui pose le
+    mieux murs et locaux sur leur sol (`maillages`, par numéro d'élément),
+    ou, sans géométrie, le placement plus Elevation."""
     echelle = ifcopenshell.util.unit.calculate_unit_scale(ifc_file)
     niveaux = ifc_file.by_type("IfcBuildingStorey")
     par_placement, par_elevation = [], []
@@ -459,13 +570,43 @@ def altitudes_des_niveaux(ifc_file) -> list[tuple[object, float]]:
         par_elevation.append(float(n.Elevation) * echelle if n.Elevation is not None else None)
     placements = {round(z, 3) for z in par_placement if z is not None}
     elevations = {round(z, 3) for z in par_elevation if z is not None}
-    prendre_elevation = len(placements) <= 1 and len(elevations) > 1
-    resultat = []
-    for n, zp, ze in zip(niveaux, par_placement, par_elevation):
-        z = ze if (prendre_elevation or zp is None) else zp
-        resultat.append((n, z if z is not None else 0.0))
-    resultat.sort(key=lambda t: t[1])
+    tous_places = all(z is not None for z in par_placement)
+    if len(placements) <= 1 and len(elevations) > 1 and (tous_places or not placements):
+        commun = next(iter(placements)) if placements else 0.0
+        emin = min(z for z in par_elevation if z is not None)
+        lectures = [[commun + (ze or 0.0) for ze in par_elevation],
+                    [commun + (ze or 0.0) - emin for ze in par_elevation],
+                    [ze or 0.0 for ze in par_elevation]]
+        # Dernière lecture : le bas des murs et des locaux de chaque niveau.
+        lectures.append([_bas_du_contenu(n, maillages, defaut)
+                         for n, defaut in zip(niveaux, lectures[0])])
+        altitudes = min(lectures, key=lambda alt: _ecart_au_sol(niveaux, alt, maillages))
+    else:
+        altitudes = [zp if zp is not None else (ze or 0.0) for zp, ze in zip(par_placement, par_elevation)]
+    resultat = sorted(zip(niveaux, altitudes), key=lambda t: t[1])
     return resultat
+
+
+def _bas_du_contenu(niveau, maillages: Optional[dict], defaut: float) -> float:
+    """Bas médian des murs et des locaux d'un niveau, ou `defaut`."""
+    bas = [maillages[e.id()].zmin for e in ifcopenshell.util.element.get_decomposition(niveau)
+           if (e.is_a("IfcWall") or e.is_a("IfcSpace")) and maillages and e.id() in maillages]
+    return float(np.median(bas)) if bas else defaut
+
+
+def _ecart_au_sol(niveaux, altitudes, maillages: Optional[dict]) -> float:
+    """Écart médian entre le bas des murs et des locaux de chaque niveau et
+    l'altitude proposée pour ce niveau (0 si la géométrie manque)."""
+    if not maillages:
+        return 0.0
+    ecarts = []
+    for n, z in zip(niveaux, altitudes):
+        for e in ifcopenshell.util.element.get_decomposition(n):
+            if e.is_a("IfcWall") or e.is_a("IfcSpace"):
+                mm = maillages.get(e.id())
+                if mm is not None:
+                    ecarts.append(abs(mm.zmin - z))
+    return float(np.median(ecarts)) if ecarts else 0.0
 
 
 def _est_externe(porte) -> bool:
@@ -495,6 +636,25 @@ def _cadre_de_porte(forme):
 
 def _rectangle(c, u, n, demi_u, demi_n) -> Polygon:
     return Polygon([c + s * demi_u * u + t * demi_n * n for s, t in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
+
+
+def _passage(c, u, n, demi_l, demi_e, parois) -> Polygon:
+    """Rectangle à retirer des murs pour ouvrir le passage d'une porte.
+
+    Il couvre toute l'épaisseur du mur qui porte la porte, même quand la
+    maquette n'a pas percé ce mur et que la porte n'en occupe qu'une partie
+    (porte posée au nu intérieur d'un mur épais) ; sans mur trouvé autour de
+    la porte, 0,30 m de part et d'autre de son axe."""
+    base = _rectangle(c, u, n, demi_l, max(demi_e, 0.05))
+    if parois is not None and not parois.is_empty:
+        long = _rectangle(c, u, n, demi_l, 1.5)
+        hote = [q for q in _polygones(parois.intersection(long)) if q.intersects(base)]
+        if hote:
+            pts = np.vstack([np.asarray(q.exterior.coords) for q in hote])
+            t = (pts - c) @ n
+            bas, haut = min(float(t.min()), -demi_e) - 0.02, max(float(t.max()), demi_e) + 0.02
+            return _rectangle(c + n * (bas + haut) / 2, u, n, demi_l, (haut - bas) / 2)
+    return _rectangle(c, u, n, demi_l, max(demi_e, 0.30))
 
 
 def _decomposition(element, classe: str) -> list:
@@ -560,7 +720,7 @@ def lire_niveaux(ifc_file, d: Dimensions) -> tuple[list[Niveau], list[str]]:
 
     # Seuls les niveaux qui contiennent un local ou une porte sont dessinés
     # (pas les fondations, toitures, acrotères) ; tous, si aucun n'en contient.
-    etages = altitudes_des_niveaux(ifc_file)
+    etages = altitudes_des_niveaux(ifc_file, maillages)
     occupes = [(n, z) for n, z in etages
                if any(e.is_a("IfcSpace") or e.is_a("IfcDoor")
                       for e in ifcopenshell.util.element.get_decomposition(n))]
@@ -569,12 +729,57 @@ def lire_niveaux(ifc_file, d: Dimensions) -> tuple[list[Niveau], list[str]]:
             if all(n is not o for o, _ in occupes):
                 remarques.append(f"Niveau « {_nom(n)} » : ni local ni porte, pas de plan.")
         etages = occupes
+    if not etages:
+        # Maquette sans IfcBuildingStorey : un seul niveau, au bas des murs et des locaux.
+        bas = [m(e).zmin for e in murs + espaces if m(e) is not None]
+        if bas:
+            etages = [(None, float(np.percentile(bas, 10)))]
+            remarques.append("La maquette n'a pas de niveau (IfcBuildingStorey) : tout est dessiné "
+                             "sur un seul plan, coupé au-dessus du bas des murs et des locaux.")
+    altitudes = [z for _, z in etages]
+    rang_etage = {n.id(): i for i, (n, _) in enumerate(etages) if n is not None}
+
+    def conteneur(e) -> Optional[int]:
+        """Rang du niveau qui contient l'élément (ou l'ensemble dont il fait partie)."""
+        for x in [e] + _parents(e):
+            c = ifcopenshell.util.element.get_container(x)
+            if c is not None and c.id() in rang_etage:
+                return rang_etage[c.id()]
+        return None
+
+    def niveau_de_depart(zbas: float, rang: Optional[int] = None) -> int:
+        """Le plus haut niveau dont le sol est sous le bas de l'élément
+        (+ 0,30 m) ; entre deux niveaux à la même altitude, celui qui le contient."""
+        dessous = [i for i, a in enumerate(altitudes) if a <= zbas + 0.30]
+        if not dessous:
+            return 0
+        egaux = [i for i in dessous if abs(altitudes[i] - altitudes[dessous[-1]]) < 0.01]
+        return rang if rang in egaux else egaux[-1]
+
+    def niveau_d_arrivee(zhaut: float, depart: int) -> Optional[int]:
+        """Le niveau dont le sol est à 0,30 m près au haut de l'élément, plus
+        haut que son niveau de départ."""
+        proches = [i for i, a in enumerate(altitudes)
+                   if abs(a - zhaut) <= 0.30 and a > altitudes[depart] + 0.30]
+        return min(proches, key=lambda i: abs(altitudes[i] - zhaut)) if proches else None
+
+    def sur_ce_niveau(parties: list, i: int, rang: Optional[int]) -> list:
+        """(maillage, monte) des parties d'un escalier ou d'une rampe visibles au
+        niveau i : celles qui en partent (on y monte), dans l'ordre où on les
+        prend en montant, puis celles qui y arrivent d'en dessous (on y
+        descend), dans l'ordre où on les prend en descendant."""
+        depart = {id(p): niveau_de_depart(p.zmin, rang) for p in parties}
+        montent = sorted((p for p in parties if depart[id(p)] == i), key=lambda p: p.zmin)
+        descendent = sorted((p for p in parties if depart[id(p)] != i
+                             and niveau_d_arrivee(p.zmax, depart[id(p)]) == i), key=lambda p: -p.zmax)
+        return [(p, True) for p in montent] + [(p, False) for p in descendent]
 
     resultat = []
-    for etage, z in etages:
-        niv = Niveau(nom=_nom(etage), altitude=z)
+    for i_etage, (etage, z) in enumerate(etages):
+        niv = Niveau(nom=_nom(etage) if etage is not None else "unique", altitude=z,
+                     ifc_id=etage.id() if etage is not None else None)
         zc = z + d.coupe
-        dedans = z - 0.05, z + 1.0  # un escalier ou un ascenseur qui touche ce niveau
+        dedans = z - 0.05, z + 1.0  # un ascenseur qui touche ce niveau
 
         def coupe_de(e):
             mm = m(e)
@@ -620,6 +825,7 @@ def lire_niveaux(ifc_file, d: Dimensions) -> tuple[list[Niveau], list[str]]:
                 s = empreinte(mm)
             niv.locaux.append(Local(_nom_local(e), s))
         interieur = unary_union([l.forme for l in niv.locaux]) if niv.locaux else None
+        parois = unary_union(niv.murs + niv.parois_basses) if niv.murs or niv.parois_basses else None
         for e in portes:
             mm = m(e)
             if mm is None or not (mm.zmin < zc < mm.zmax):
@@ -640,29 +846,28 @@ def lire_niveaux(ifc_file, d: Dimensions) -> tuple[list[Niveau], list[str]]:
                         dehors = (-n[0], -n[1]) if ia else (n[0], n[1])
                 if dehors is None:
                     niv.portes_ext_ambigues += 1
-            # La coupe traverse tout mur au droit de la porte : 0,30 m de part
-            # et d'autre de l'axe, assez pour les murs épais.
-            niv.portes.append((_rectangle(c, u, n, demi_l, max(demi_e, 0.30)), dehors, c))
-        for e in escaliers:
-            parties = [m(v) for v in volees[e.id()] if m(v) is not None] or ([m(e)] if m(e) else [])
-            parties = [p for p in parties if touche(p)]
-            if not parties:
-                continue
-            niv.escaliers.append(Escalier(_nom(e), [(empreinte(p), _sens_de_montee(p)) for p in parties]))
-        for e in volees_orphelines:
-            mm = m(e)
-            if mm is not None and touche(mm):
-                niv.escaliers.append(Escalier(_nom(e), [(empreinte(mm), _sens_de_montee(mm))]))
+            niv.portes.append((_passage(c, u, n, demi_l, demi_e, parois), dehors, c))
+        for e in escaliers + volees_orphelines:
+            parties = [m(v) for v in volees.get(e.id(), []) if m(v) is not None] or ([m(e)] if m(e) else [])
+            vues = sur_ce_niveau(parties, i_etage, conteneur(e))
+            if vues:
+                niv.escaliers.append(Escalier(_nom(e), [
+                    (empreinte(p), _sens_de_montee(p), monte, _axe_des_marches(p)) for p, monte in vues]))
         for e in rampes + rampes_orphelines:
             parties = ([m(v) for v in volees_rampes.get(e.id(), []) if m(v) is not None]
                        or ([m(e)] if m(e) else []))
-            parties = [p for p in parties if touche(p)]
-            for p in parties:
-                pente = _pente(p)
-                if pente is None:
-                    niv.rampes_plates.append(_nom(e))
-                else:
-                    niv.rampes.append(Rampe(_nom(e), empreinte(p), pente))
+            vues = sur_ce_niveau(parties, i_etage, conteneur(e))
+            if not vues:
+                continue
+            pans = [pan for p, _ in vues for pan in _pans(p)]
+            hauts = [pan for pan in pans if pan[0].area >= 0.05]
+            zmin = min((pan[4] for pan in hauts), default=0.0)
+            zmax = max((pan[5] for pan in hauts), default=0.0)
+            if not any(math.hypot(pan[1], pan[2]) >= 0.005 for pan in hauts) or zmax - zmin < 0.01:
+                niv.rampes_plates.append(_nom(e))
+                continue
+            niv.rampes.append(Rampe(_nom(e), unary_union([empreinte(p) for p, _ in vues]), pans,
+                                    zmin, zmax, all(monte for _, monte in vues)))
         for e in transports:
             mm = m(e)
             if mm is None or not touche(mm):
@@ -672,7 +877,9 @@ def lire_niveaux(ifc_file, d: Dimensions) -> tuple[list[Niveau], list[str]]:
                 niv.ascenseurs.append((("Élévateur" if genre == "elevateur" else "Ascenseur")
                                        + f" « {_nom(e)} »", empreinte(mm)))
             elif genre == "mecanique":
-                niv.escaliers.append(Escalier(_nom(e), [(empreinte(mm), None)], mecanique=True))
+                if sur_ce_niveau([mm], i_etage, conteneur(e)):
+                    niv.escaliers.append(Escalier(_nom(e), [(empreinte(mm), None, True, None)],
+                                                  mecanique=True))
 
         if not niv.murs and niv.locaux:
             # Maquette sans murs : le contour des locaux en tient lieu.
@@ -682,7 +889,7 @@ def lire_niveaux(ifc_file, d: Dimensions) -> tuple[list[Niveau], list[str]]:
             resultat.append(niv)
         else:
             remarques.append(f"Niveau « {niv.nom} » : ni mur ni local coupé à "
-                             f"{d.coupe:.2f} m du sol, pas de plan.".replace(".", ",", 1))
+                             f"{_metres(d.coupe)} du sol, pas de plan.")
     sans_geo = sum(1 for e in murs + espaces if e.Representation and m(e) is None)
     if sans_geo:
         remarques.append(f"{sans_geo} mur(s) ou local(aux) dont la géométrie n'a pas pu être lue.")
@@ -817,7 +1024,8 @@ class Dessin:
     largeur: float
     hauteur: float
     prismes: list = field(default_factory=list)     # (polygone, hauteur au-dessus du socle)
-    coins: list = field(default_factory=list)       # (polygone, gradient unitaire, h bas, h haut)
+    # (polygone, a, b, c, h min, h max) : relief de hauteur a·x + b·y + c au-dessus du socle
+    coins: list = field(default_factory=list)
     domes: list = field(default_factory=list)       # (x, y, diamètre, hauteur)
     numeros: list = field(default_factory=list)     # (numéro, nom du local)
     sans_numero: list = field(default_factory=list)
@@ -826,9 +1034,14 @@ class Dessin:
     rampes: list = field(default_factory=list)
     ascenseurs: list = field(default_factory=list)
     entrees: int = 0
+    entrees_sans_place: int = 0                     # portes vers l'extérieur sans triangle
+    titre_a_droite: bool = False                    # pour laisser la place à un triangle d'entrée
+    barre_a_droite: bool = False
+    non_dessines: list = field(default_factory=list)  # trop petits à cette échelle
     poteaux_omis: int = 0
     nord: Optional[str] = None
     echelle_m: int = 0
+    origine: tuple = (0.0, 0.0)  # point de la plaque (mm) où tombe le coin bas gauche de la fenêtre
 
 
 def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, float]]) -> Dessin:
@@ -836,7 +1049,12 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
     niv = page.niveau
     W, H = page.largeur, page.hauteur
     x0, y0, x1, y1 = page.fenetre
-    ox, oy = d.marge, d.bandeau
+    k = 1000.0 / den
+    # Le dessin est centré dans la place qui lui revient : quand la plaque est
+    # plus grande que lui (110 × 70 mm au moins), il reste de la place tout
+    # autour pour les triangles des portes de façade.
+    ox = d.marge + max(0.0, (W - 2 * d.marge - (x1 - x0) * k) / 2)
+    oy = d.bandeau + max(0.0, (H - 2 * d.bandeau - (y1 - y0) * k) / 2)
     zone_dessin = box(d.marge, d.bandeau, W - d.marge, H - d.bandeau)
     fenetre = box(x0, y0, x1, y1)
 
@@ -845,8 +1063,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
             return Polygon()
         return _vers_plaque(geom.intersection(fenetre), x0, y0, den, ox, oy).intersection(zone_dessin)
 
-    k = 1000.0 / den
-    des = Dessin(W, H)
+    des = Dessin(W, H, origine=(ox, oy))
 
     # Murs : union, petites fentes refermées, traits minces épaissis, puis
     # portes recoupées pour garder leur passage.
@@ -877,74 +1094,194 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
     obstacles = unary_union([murs, basses])
     ecarte = obstacles.buffer(1.0)
 
+    plaque_mm = Polygon([(0, 0), (W, 0), (W, H), (d.coin, H), (0, H - d.coin)])
+    locaux_mm = [(l, p(l.forme)) for l in niv.locaux]
+    dedans_mm = unary_union([f for _, f in locaux_mm if not f.is_empty])
+
+    def placer_volee(forme_m):
+        """Forme d'une volée, d'une rampe ou d'un ascenseur sur la plaque,
+        écartée des murs (1 mm, ou 0,5 mm s'il n'y a pas la place) ; None si
+        elle n'est pas sur cette plaque, vide si elle est trop petite."""
+        brute = p(forme_m)
+        if brute.is_empty:
+            return None
+        for ecart in (ecarte, ecarte_serre):
+            forme = brute.difference(ecart)
+            if forme.area >= 4:
+                return forme
+        return Polygon()
+
+    ecarte_serre = obstacles.buffer(0.5)
     for esc in niv.escaliers:
-        sens_dessines = []
-        for forme_m, sens in esc.volees:
-            forme = p(forme_m).difference(ecarte)
-            if forme.is_empty or forme.area < 4:
+        dessinees, trop_petit = [], False
+        for forme_m, sens, monte, axe in esc.volees:
+            forme = placer_volee(forme_m)
+            if forme is None:
                 continue
-            if sens is None:
-                # Sans sens connu, stries en travers de la plus grande longueur.
+            if forme.is_empty:
+                trop_petit = True
+                continue
+            if sens is not None:
+                direction = sens
+            elif axe is not None:
+                direction = (-axe[1], axe[0])  # stries le long du nez des marches
+            else:
+                # Ni sens ni marches lisibles : stries en travers de la plus
+                # grande longueur, comme sur une volée droite ordinaire.
                 rect = _cadre_de_porte(forme)
                 direction = tuple(rect[1]) if rect else (1.0, 0.0)
-            else:
-                direction = sens
             stries = _rayures(forme, direction, d)
             if not stries.is_empty:
                 des.prismes.append((stries, d.strie))
-                sens_dessines.append(sens)
-        if not sens_dessines:
+                dessinees.append((sens, monte))
+        if not dessinees:
+            if trop_petit:
+                genre = "escalier mécanique" if esc.mecanique else "escalier"
+                des.non_dessines.append(f"{genre} « {esc.nom} »")
             continue
         if esc.mecanique:
             des.escaliers.append(f"escalier mécanique « {esc.nom} »")
-        elif all(s is not None for s in sens_dessines):
-            sens_mots = ", puis ".join(_direction_en_mots(*s) for s in sens_dessines)
-            volees = f"{len(sens_dessines)} volées, " if len(sens_dessines) > 1 else ""
-            des.escaliers.append(f"escalier « {esc.nom} », {volees}monte {sens_mots}")
-        else:
-            des.escaliers.append(f"escalier « {esc.nom} », sens de montée non trouvé "
-                                 "(escalier tournant, ou marches illisibles dans la maquette)")
-    for r in niv.rampes:
-        forme = p(r.forme).difference(ecarte)
-        if forme.is_empty or forme.area < 4:
             continue
-        g = math.hypot(*r.pente)
-        des.coins.append((forme, (r.pente[0] / g, r.pente[1] / g), d.rampe_bas, d.rampe_haut))
-        des.rampes.append(f"rampe « {r.nom} », {g * 100:.1f} % mesurés, monte "
-                          f"{_direction_en_mots(*r.pente)}".replace(".", ","))
+        volees = f"{len(dessinees)} volées, " if len(dessinees) > 1 else ""
+        sens_connus = all(s is not None for s, _ in dessinees)
+        morceaux = []
+        for monte in (True, False):
+            liste = [s for s, m in dessinees if m == monte]
+            if not liste:
+                continue
+            if not sens_connus:
+                continue
+            if monte:
+                morceaux.append("monte " + ", puis ".join(_direction_en_mots(*s) for s in liste))
+            else:
+                morceaux.append("descend " + ", puis ".join(_direction_en_mots(-s[0], -s[1]) for s in liste))
+        if sens_connus:
+            des.escaliers.append(f"escalier « {esc.nom} », {volees}" + " ; il ".join(morceaux))
+        else:
+            vers = ("on y monte depuis ce niveau" if all(m for _, m in dessinees)
+                    else "on y descend depuis ce niveau" if not any(m for _, m in dessinees)
+                    else "on y monte et on y descend depuis ce niveau")
+            des.escaliers.append(f"escalier « {esc.nom} », {volees}{vers} ; sens de la volée non "
+                                 "trouvé (escalier tournant, ou marches illisibles dans la maquette)")
+    for r in niv.rampes:
+        emprise = placer_volee(r.forme)
+        if emprise is None:
+            continue
+        s = (d.rampe_haut - d.rampe_bas) / (r.zmax - r.zmin)
+        dessinee = False
+        for poly, gx, gy, c0, _, _ in r.pans:
+            forme = p(poly).intersection(emprise) if not emprise.is_empty else Polygon()
+            if forme.area < 1.0:
+                continue
+            # Hauteur sur la plaque : la vraie altitude du pan, ramenée entre
+            # rampe_bas (bas de la rampe) et rampe_haut (haut de la rampe).
+            a, b = s * gx / k, s * gy / k
+            c = d.rampe_bas + s * (gx * (x0 - ox / k) + gy * (y0 - oy / k) + c0 - r.zmin)
+            des.coins.append((forme, a, b, c, d.rampe_bas, d.rampe_haut))
+            dessinee = True
+        if not dessinee:
+            des.non_dessines.append(f"rampe « {r.nom} »")
+            continue
+        en_pente = sorted((pan for pan in r.pans if pan[0].area >= 0.05 and math.hypot(pan[1], pan[2]) >= 0.005),
+                          key=lambda pan: pan[4] + pan[5])
+        if r.monte:
+            mots = [f"{_direction_en_mots(gx, gy)} ({_pourcent(math.hypot(gx, gy))})"
+                    for _, gx, gy, *_ in en_pente]
+            verbe = "monte"
+        else:
+            mots = [f"{_direction_en_mots(-gx, -gy)} ({_pourcent(math.hypot(gx, gy))})"
+                    for _, gx, gy, *_ in reversed(en_pente)]
+            verbe = "descend"
+        if len(mots) == 1:
+            pente = mots[0][mots[0].index("(") + 1:-1]
+            des.rampes.append(f"rampe « {r.nom} », {pente} mesurés, {verbe} {mots[0][:mots[0].index(' (')]}")
+        else:
+            des.rampes.append(f"rampe « {r.nom} », {len(mots)} parties en pente, {verbe} "
+                              + ", puis ".join(mots))
     for nom, forme in niv.ascenseurs:
-        f = p(forme).difference(ecarte)
-        if f.is_empty or f.area < 4:
+        f = placer_volee(forme)
+        if f is None:
+            continue
+        if f.is_empty:
+            des.non_dessines.append(nom[0].lower() + nom[1:])
             continue
         des.prismes.append((f, d.ascenseur))
         des.ascenseurs.append(nom)
 
     reliefs = unary_union([g for g, _ in des.prismes] + [c[0] for c in des.coins])
 
-    # Portes vers l'extérieur : triangle dehors, pointe vers l'intérieur.
-    occupe = reliefs.buffer(0.5)
-    for rect, dehors, c in niv.portes:
-        if dehors is None:
-            continue
-        centre = p(Point(c))
-        if centre.is_empty:
-            continue
-        cx, cy = centre.x, centre.y
-        nx, ny = dehors
-        cote = d.entree_cote
-        for recul in np.arange(cote * 0.6, cote * 2.5, 0.5):
-            tx, ty = cx + nx * recul, cy + ny * recul
-            sommet = (tx - nx * cote * 0.5, ty - ny * cote * 0.5)
-            base = [(tx + nx * cote * 0.4 + ny * cote * 0.5, ty + ny * cote * 0.4 - nx * cote * 0.5),
-                    (tx + nx * cote * 0.4 - ny * cote * 0.5, ty + ny * cote * 0.4 + nx * cote * 0.5)]
-            tri = Polygon([sommet] + base)
-            if zone_dessin.contains(tri) and not tri.intersects(occupe):
-                des.prismes.append((tri, d.entree))
-                occupe = occupe.union(tri.buffer(1.0))
-                des.entrees += 1
-                break
+    # Bandeaux : titre en haut, barre d'échelle en bas, à gauche d'ordinaire.
+    # Les triangles des portes de façade peuvent déborder du dessin sur les
+    # marges et les bandeaux ; si l'un d'eux tombe sous le titre ou sous la
+    # barre, celui-ci passe à droite de son bandeau.
+    for metres in (1, 2, 5, 10, 20, 50, 100, 200):
+        longueur = metres * k
+        if longueur >= 20:
+            break
+    texte_echelle = f"{metres} m"
+    larg_titre = taille_braille(page.titre, d)[0]
+    larg_barre = longueur + d.distance + 1.0 + taille_braille(texte_echelle, d)[0]
+    fin_haut = W - d.marge - (12 + d.distance if nord is not None else 0)
+    positions_titre = (d.coin + d.distance + 1.0, fin_haut - larg_titre)
+    positions_barre = (d.marge, W - d.marge - larg_barre)
+    fleche_nord = box(W - d.marge - 12, H - d.bandeau, W, H) if nord is not None else Polygon()
 
-    # Repères des écarts de l'audit, ni sur un relief ni dans un passage de porte.
+    def poser_triangles(x_titre: float, x_barre: float) -> tuple[list, int]:
+        """Triangles d'entrée possibles avec ces places de titre et de barre :
+        (triangles posés, portes vers l'extérieur restées sans triangle).
+        Un triangle reste hors des locaux, et rien ne le sépare de sa porte."""
+        reserve = unary_union([
+            box(x_titre, H - d.bandeau, x_titre + larg_titre, H), fleche_nord,
+            box(x_barre, 0, x_barre + larg_barre, d.bandeau),
+        ]).buffer(d.distance)
+        zone = plaque_mm.buffer(-1.0).difference(reserve)
+        occupe = reliefs.buffer(0.5)
+        hors_locaux = dedans_mm.buffer(-0.5)
+        poses, manques = [], 0
+        for _, dehors, c in niv.portes:
+            if dehors is None:
+                continue
+            centre = p(Point(c))
+            if centre.is_empty:
+                continue
+            cx, cy = centre.x, centre.y
+            nx, ny = dehors
+            cote = d.entree_cote
+            pose = None
+            for recul in np.arange(cote * 0.6, cote * 2.5, 0.5):
+                tx, ty = cx + nx * recul, cy + ny * recul
+                sommet = (tx - nx * cote * 0.5, ty - ny * cote * 0.5)
+                base = [(tx + nx * cote * 0.4 + ny * cote * 0.5, ty + ny * cote * 0.4 - nx * cote * 0.5),
+                        (tx + nx * cote * 0.4 - ny * cote * 0.5, ty + ny * cote * 0.4 + nx * cote * 0.5)]
+                tri = Polygon([sommet] + base)
+                if not zone.contains(tri) or tri.intersects(occupe) or tri.intersects(hors_locaux):
+                    continue
+                if not LineString([(cx, cy), sommet]).intersects(obstacles):
+                    pose = tri
+                break  # posé, ou un mur entre la porte et cette place : plus loin, ce serait pire
+            if pose is None:
+                manques += 1
+            else:
+                poses.append(pose)
+                occupe = occupe.union(pose.buffer(1.0))
+        return poses, manques
+
+    essais = [(xt, xb) for xb in positions_barre for xt in positions_titre]
+    resultats = [poser_triangles(xt, xb) for xt, xb in essais]
+    meilleur = min(range(len(essais)), key=lambda i: (resultats[i][1], i))
+    x_titre, x_barre = essais[meilleur]
+    triangles, des.entrees_sans_place = resultats[meilleur]
+    des.titre_a_droite = x_titre != positions_titre[0]
+    des.barre_a_droite = x_barre != positions_barre[0]
+    for tri in triangles:
+        des.prismes.append((tri, d.entree))
+    des.entrees = len(triangles)
+    occupe = reliefs.buffer(0.5)
+    for tri in triangles:
+        occupe = occupe.union(tri.buffer(1.0))
+
+    # Repères des écarts de l'audit, ni sur un relief ni dans un passage de
+    # porte ; le dôme reste dans le local de l'élément, sans mur entre eux.
     occupe = occupe.union(portes)
     rayon = d.repere_diametre / 2
     places_reperes, sans_place = [], []
@@ -952,14 +1289,22 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         pt = p(Point(rep.position))
         if pt.is_empty:
             continue
+        depart = [q for q in _polygones(obstacles) if q.distance(pt) < 0.3]
+        barrieres = obstacles.difference(unary_union(depart)) if depart else obstacles
+        local_mm = next((f for l, f in locaux_mm if l.forme.contains(Point(rep.position))), None)
         place = None
         for rr in np.arange(0, 15.5, 0.5):
             for a in np.linspace(0, 2 * math.pi, max(1, int(rr * 2)) + 1)[:-1] if rr else [0.0]:
                 q = Point(pt.x + rr * math.cos(a), pt.y + rr * math.sin(a))
                 cercle = q.buffer(rayon + 1.0)
-                if zone_dessin.contains(cercle) and not cercle.intersects(occupe):
-                    place = q
-                    break
+                if not zone_dessin.contains(cercle) or cercle.intersects(occupe):
+                    continue
+                if local_mm is not None and not local_mm.buffer(0.5).contains(q):
+                    continue
+                if rr and LineString([(pt.x, pt.y), (q.x, q.y)]).intersects(barrieres):
+                    continue
+                place = q
+                break
             if place is not None:
                 break
         local = _local_de(niv, rep.position)
@@ -1006,7 +1351,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
             des.domes.append((x, y, d.point_diametre, d.point_hauteur))
 
     # Bandeau du haut : titre en braille ; flèche du nord à droite.
-    tx = d.coin + d.distance + 1.0
+    tx = x_titre
     ty = H - (d.bandeau - taille_braille(page.titre, d)[1]) / 2
     for x, y in points_braille(page.titre, tx, ty, d):
         des.domes.append((x, y, d.point_diametre, d.point_hauteur))
@@ -1020,23 +1365,20 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         des.prismes.append((fleche, d.paroi_basse))
         des.nord = _direction_en_mots(nx, ny)
 
-    # Bandeau du bas : barre d'échelle d'un nombre rond de mètres.
-    for metres in (1, 2, 5, 10, 20, 50, 100, 200):
-        longueur = metres * k
-        if longueur >= 20:
-            break
+    # Bandeau du bas : barre d'échelle d'un nombre rond de mètres (calculée
+    # plus haut, avec la place réservée dans les bandeaux).
     des.echelle_m = metres
     by = d.bandeau / 2
     barre = unary_union([
-        box(d.marge, by - 1.0, d.marge + longueur, by + 1.0),
-        box(d.marge, by - 3.0, d.marge + 1.2, by + 3.0),
-        box(d.marge + longueur - 1.2, by - 3.0, d.marge + longueur, by + 3.0),
+        box(x_barre, by - 1.0, x_barre + longueur, by + 1.0),
+        box(x_barre, by - 3.0, x_barre + 1.2, by + 3.0),
+        box(x_barre + longueur - 1.2, by - 3.0, x_barre + longueur, by + 3.0),
     ])
     des.prismes.append((barre, d.paroi_basse))
-    texte = f"{metres} m"
+    texte = texte_echelle
     larg, haut = taille_braille(texte, d)
-    lx = d.marge + longueur + d.distance + 1.0
-    if lx + larg < W - d.marge:
+    lx = x_barre + longueur + d.distance + 1.0
+    if lx + larg < W - d.marge + 1e-6:
         for x, y in points_braille(texte, lx, by + haut / 2, d):
             des.domes.append((x, y, d.point_diametre, d.point_hauteur))
     return des
@@ -1054,8 +1396,11 @@ def _local_de(niv: Niveau, position) -> Optional[str]:
 #  MISE EN RELIEF (manifold3d) ET STL
 # ─────────────────────────────────────────────────────────────────────────────
 
-_SIMPLIFICATION = 0.05  # mm
-_CHEVAUCHEMENT = 0.06   # mm, plus que la simplification
+_SIMPLIFICATION = 0.01  # mm
+# Épaississement de chaque relief, en mm : de _CHEVAUCHEMENT à
+# _CHEVAUCHEMENT + 6 × _PAS_CHEVAUCHEMENT selon la couche (voir relief()).
+_CHEVAUCHEMENT = 0.02
+_PAS_CHEVAUCHEMENT = 0.005
 
 
 def _section(manifold3d, geom, marge: float = 0.0):
@@ -1098,31 +1443,28 @@ def relief(des: Dessin, d: Dimensions):
         # Épaississement différent pour chaque couche : deux couches qui
         # partagent un coin, épaissies de la même quantité, auraient leurs
         # nouveaux coins exactement au même point.
-        marge = _CHEVAUCHEMENT + 0.013 * (i % 7)
+        marge = _CHEVAUCHEMENT + _PAS_CHEVAUCHEMENT * (i % 7)
         cs = _section(manifold3d, geom, marge) if not geom.is_empty else None
         if cs is None or cs.is_empty():
             continue
         # Les reliefs plongent de 0,5 mm dans le socle pour s'y souder.
         morceaux.append(manifold3d.Manifold.extrude(cs, h + 0.5).translate((0, 0, d.socle - 0.5)))
-    for geom, (gx, gy), h_bas, h_haut in des.coins:
-        cs = _section(manifold3d, geom.intersection(interieur), _CHEVAUCHEMENT)
+    for j, (geom, a, b, c, h_min, h_max) in enumerate(des.coins):
+        marge = _CHEVAUCHEMENT + _PAS_CHEVAUCHEMENT * ((len(des.prismes) + j) % 7)
+        cs = _section(manifold3d, geom.intersection(interieur), marge)
         if cs is None or cs.is_empty():
             continue
-        pts = np.vstack([np.asarray(p.exterior.coords) for p in _polygones(geom)])
-        proj = pts[:, 0] * gx + pts[:, 1] * gy
-        pmin, pmax = proj.min(), proj.max()
-        etendue = max(pmax - pmin, 1e-6)
-        sommet = d.socle + h_haut
+        sommet = d.socle + h_max
 
-        def gauchir(v, gx=gx, gy=gy, pmin=pmin, etendue=etendue, h_bas=h_bas, h_haut=h_haut,
-                    sommet=sommet):
+        # Le dessus de l'extrusion est relevé ou abaissé sur le plan du pan
+        # (rampe) : hauteur a·x + b·y + c, bornée entre h_min et h_max.
+        def gauchir(v, a=a, b=b, c=c, h_min=h_min, h_max=h_max, sommet=sommet):
             x, y, z = v
             if z > sommet - 1e-6:
-                t = (x * gx + y * gy - pmin) / etendue
-                z = d.socle + h_bas + (h_haut - h_bas) * min(max(t, 0.0), 1.0)
+                z = d.socle + min(max(a * x + b * y + c, h_min), h_max)
             return (x, y, z)
 
-        coin = manifold3d.Manifold.extrude(cs, h_haut + 0.5).translate((0, 0, d.socle - 0.5))
+        coin = manifold3d.Manifold.extrude(cs, h_max + 0.5).translate((0, 0, d.socle - 0.5))
         morceaux.append(coin.warp(gauchir))
     for x, y, diam, h in des.domes:
         r = diam / 2
@@ -1188,9 +1530,10 @@ def _ajouter_reperes(ifc_file, niveaux: list[Niveau], rapport) -> list[str]:
     constats qui n'ont pas pu être placés."""
     par_element: dict[str, list[str]] = {}
     hors_plan = []
+    from audit_ifc_rgaa import texte_md
     for nc in rapport.non_conformites:
-        ligne = (f"{nc.element_type} « {nc.nom} ». Constat : {_phrase(nc.constat)} "
-                 f"Exigence : {_phrase(nc.exigence)} Référence : {_phrase(nc.article)}")
+        ligne = texte_md(f"{nc.element_type} « {nc.nom} ». Constat : {_phrase(nc.constat)} "
+                         f"Exigence : {_phrase(nc.exigence)} Référence : {_phrase(nc.article)}")
         if not nc.global_id:
             hors_plan.append(ligne)
             continue
@@ -1210,9 +1553,17 @@ def _ajouter_reperes(ifc_file, niveaux: list[Niveau], rapport) -> list[str]:
         if mm is None or not niveaux:
             hors_plan.extend(lignes)
             continue
-        # Niveau : le plus haut dont le sol est sous le bas de l'élément (+ 0,30 m).
+        # Niveau : le plus haut dont le sol est sous le bas de l'élément (+ 0,30 m) ;
+        # entre deux niveaux à la même altitude, celui qui contient l'élément.
         candidats = [n for n in niveaux if n.altitude <= mm.zmin + 0.30]
         niv = candidats[-1] if candidats else niveaux[0]
+        egaux = [n for n in candidats if abs(n.altitude - niv.altitude) < 0.01]
+        for x in [e] + _parents(e):
+            c = ifcopenshell.util.element.get_container(x)
+            choisi = next((n for n in egaux if c is not None and n.ifc_id == c.id()), None)
+            if choisi is not None:
+                niv = choisi
+                break
         c = empreinte(mm).representative_point()
         niv.reperes.append(Repere((c.x, c.y), lignes))
     return hors_plan
@@ -1250,6 +1601,12 @@ def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
 
     dossier.mkdir(parents=True, exist_ok=True)
     base = Path(chemin_ifc).stem
+    # Les plaques et la légende PDF d'un essai précédent dans ce dossier sont
+    # retirées : la nouvelle légende ne les décrirait pas.
+    for ancien in dossier.iterdir():
+        if (re.fullmatch(re.escape(base) + r"_plan\d+(_partie\d+)?\.stl", ancien.name)
+                or ancien.name == f"{base}_plan_tactile.pdf"):
+            ancien.unlink()
     fichiers, pages_info = [], []
     for i, niv in enumerate(niveaux):
         for jy in range(ny):
@@ -1269,19 +1626,30 @@ def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
     conseil = None
     numerotes = sum(len(info[4].numeros) for info in pages_info)
     a_numeroter = numerotes + sum(len(info[4].sans_numero) for info in pages_info)
-    if a_numeroter and numerotes < 0.8 * a_numeroter:
+    reperes = (sum(1 for info in pages_info for r in info[4].reperes if r[3]),
+               sum(len(info[4].reperes) for info in pages_info))
+    if (a_numeroter and numerotes < 0.8 * a_numeroter) or reperes[0] < reperes[1]:
         den_conseil = echelle_pour_numeros(niveaux, d)
         if den_conseil is not None and den_conseil < den:
             conseil = (den_conseil, decoupage(etendue, den_conseil, plateau, d), numerotes, a_numeroter)
     legende = generer_legende(chemin_ifc, pages_info, den, (W, H), d, nx, ny, remarques,
-                              hors_plan, rapport, nord is not None, conseil)
+                              hors_plan, rapport, nord is not None, conseil, reperes)
     chemin_md = dossier / f"{base}_plan_tactile.md"
     chemin_md.write_text(legende, encoding="utf-8")
     resume = {"echelle": den, "plaque": (W, H), "parties": (nx, ny), "stl": fichiers,
               "legende": chemin_md, "niveaux": len(niveaux), "conseil": conseil,
+              "reperes": reperes,  # (dômes posés, écarts placés sur un niveau)
               # Pour les tests : (titre, dessin, fenêtre en mètres) de chaque plaque.
               "pages": [(info[3], info[4], info[6]) for info in pages_info]}
     return resume
+
+
+def _metres(x: float) -> str:
+    return f"{x:.2f}".replace(".", ",") + " m"
+
+
+def _pourcent(g: float) -> str:
+    return f"{g * 100:.1f}".replace(".", ",") + " %"
 
 
 def _mm(x: float) -> str:
@@ -1289,9 +1657,10 @@ def _mm(x: float) -> str:
 
 
 def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, remarques,
-                    hors_plan, rapport, nord_connu: bool, conseil=None) -> str:
+                    hors_plan, rapport, nord_connu: bool, conseil=None, reperes=(0, 0)) -> str:
     W, H = plaque
-    L = [f"# Plan tactile — {Path(chemin_ifc).name}", ""]
+    from audit_ifc_rgaa import texte_md
+    L = [f"# Plan tactile — {texte_md(Path(chemin_ifc).name)}", ""]
     L.append(f"Généré le {datetime.datetime.now():%d/%m/%Y à %H:%M} par audit-ifc-rgaa "
              f"(plan_tactile.py).")
     L.append("")
@@ -1306,14 +1675,19 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
                  "puis vers le bas, comme une lecture.")
     L.append("- **Sens de lecture** : le coin coupé est en haut à gauche ; le titre en braille "
              "est dans le bandeau du haut, la barre d'échelle dans celui du bas.")
-    L.append(f"- **Coupe** : à {d.coupe:.2f} m au-dessus du sol de chaque niveau.".replace(".", ",", 1))
+    L.append(f"- **Coupe** : à {_metres(d.coupe)} au-dessus du sol de chaque niveau.")
     if not nord_connu:
         L.append("- **Nord** : la maquette ne l'indique pas ; pas de flèche.")
+    if reperes[0] < reperes[1]:
+        L.append(f"- **Repères des écarts** : {reperes[0]} sur {reperes[1]} ont leur dôme sur la "
+                 "plaque. Un dôme ne passe pas dans un local trop petit à cette échelle, et il ne "
+                 "va jamais dans un local voisin ; les autres écarts sont dans la légende.")
     if conseil is not None:
         den_c, (cx, cy), faits, total = conseil
         L.append(f"- **Numéros des locaux** : {faits} sur {total} ont trouvé leur place à cette "
                  f"échelle. À l'échelle 1/{den_c} (option `--echelle {den_c}`), 8 locaux sur 10 "
-                 f"environ auraient le leur ; il faudrait {cx * cy} plaque(s) par niveau.")
+                 f"environ auraient le leur, et les dômes plus de place ; il faudrait {cx * cy} "
+                 "plaque(s) par niveau.")
     L.append("")
     L.append("## Les symboles")
     L.append("")
@@ -1344,6 +1718,12 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
                  f"Barre d'échelle : {des.echelle_m} m.")
         if des.nord:
             L.append(f"Le nord est {des.nord} de la plaque.")
+        deplaces = [x for x, oui in (("le titre est à droite du bandeau du haut", des.titre_a_droite),
+                                     ("la barre d'échelle est à droite du bandeau du bas", des.barre_a_droite))
+                    if oui]
+        if deplaces:
+            L.append(f"Sur cette plaque, {' et '.join(deplaces)}, pour laisser la place à un "
+                     "triangle d'entrée.")
         if niv.murs_depuis_locaux:
             L.append("")
             L.append("La maquette n'a pas de murs à ce niveau : le contour des locaux est dessiné "
@@ -1357,14 +1737,19 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
                 fin = " — trop petit à cette échelle, numéro absent de la plaque" if num in absents else ""
                 L.append(f"- {num} : {nom}{fin}")
         if (des.escaliers or des.rampes or des.ascenseurs or des.entrees or niv.portes_ext_ambigues
-                or des.poteaux_omis or niv.rampes_plates):
+                or des.poteaux_omis or niv.rampes_plates or des.non_dessines or des.entrees_sans_place):
             L.append("")
             L.append("### Circulations")
             L.append("")
             for t in des.escaliers + des.rampes + des.ascenseurs:
                 L.append(f"- {t[0].upper()}{t[1:]}")
+            if des.non_dessines:
+                L.append("- Trop petits à cette échelle, non dessinés : " + ", ".join(des.non_dessines))
             if des.entrees:
                 L.append(f"- Portes vers l'extérieur marquées d'un triangle : {des.entrees}")
+            if des.entrees_sans_place:
+                L.append(f"- {des.entrees_sans_place} porte(s) vers l'extérieur sans triangle : pas de "
+                         "place dehors sur la plaque, ou un mur entre la porte et la place libre")
         if niv.portes_ext_ambigues:
             L.append(f"- {niv.portes_ext_ambigues} porte(s) dite(s) extérieure(s) dans la maquette, "
                      "mais sans local d'un seul côté (sas, balcon, ou locaux absents) : pas de triangle")
@@ -1411,12 +1796,12 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Path, Path]:
-    """Plaque de 150 × 100 mm pour choisir les hauteurs en les touchant."""
-    W, H = 150.0, 100.0
+    """Plaque de 150 × 120 mm pour choisir les hauteurs en les touchant."""
+    W, H = 150.0, 120.0
     des = Dessin(W, H)
     lignes = ["# Éprouvette du plan tactile", "",
-              "Plaque de 150 × 100 mm, coin coupé en haut à gauche, titre « eprouvette » en "
-              "braille dans le bandeau du haut. Quatre rangées d'essais, de haut en bas ; "
+              "Plaque de 150 × 120 mm, coin coupé en haut à gauche, titre « eprouvette » en "
+              "braille dans le bandeau du haut. Cinq rangées d'essais, de haut en bas ; "
               "chaque essai commence par son numéro en braille, à gauche. Touchez-les et "
               "notez, pour chaque rangée, le numéro qui se lit le mieux.", ""]
 
@@ -1430,7 +1815,7 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
     ecart = 4.0  # entre un numéro et son essai
 
     lignes += ["## Rangée 1 : hauteur des murs", ""]
-    yc = 76.0
+    yc = 96.0
     for i, h in enumerate((2.0, 3.0, 4.0, 5.0)):
         x = 6 + i * 36
         fin_num = etiquette(str(i + 1), x, yc) + ecart
@@ -1438,7 +1823,7 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
         lignes.append(f"- {i + 1} : mur de {_mm(h)} de haut, {_mm(d.largeur_min)} de large")
 
     lignes += ["", f"## Rangée 2 : passage de porte dans un mur de {_mm(d.mur)}", ""]
-    yc = 56.0
+    yc = 76.0
     for i, g in enumerate((3.0, 5.0, 8.0)):
         x = 6 + i * 48
         fin_num = etiquette(str(i + 1), x, yc) + ecart
@@ -1447,7 +1832,7 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
         lignes.append(f"- {i + 1} : passage de {_mm(g)}")
 
     lignes += ["", "## Rangée 3 : hauteur des points braille (mot « mur »)", ""]
-    yc = 36.0
+    yc = 56.0
     for i, h in enumerate((0.5, 0.6, 0.7, 0.8)):
         x = 6 + i * 36
         fin_num = etiquette(str(i + 1), x, yc) + ecart
@@ -1455,7 +1840,7 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
         lignes.append(f"- {i + 1} : points de {_mm(h)} de haut, {_mm(d.point_diametre)} de diamètre")
 
     lignes += ["", f"## Rangée 4 : écart des stries d'escalier ({_mm(d.strie)} de haut)", ""]
-    yc = 16.0
+    yc = 36.0
     for i, pas in enumerate((2.0, 3.0, 4.0)):
         x = 6 + i * 48
         fin_num = etiquette(str(i + 1), x, yc) + ecart
@@ -1463,6 +1848,17 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
         stries = _rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), dd)
         des.prismes.append((stries, d.strie))
         lignes.append(f"- {i + 1} : stries tous les {_mm(pas)}")
+
+    # L'étude de Kaplan et Pyayt trouve trop bas les codages d'escalier de 1 et
+    # 2 mm : la hauteur des stries se choisit donc aussi en touchant.
+    lignes += ["", f"## Rangée 5 : hauteur des stries d'escalier (tous les {_mm(d.strie_pas)})", ""]
+    yc = 16.0
+    for i, h in enumerate((1.0, 2.0, 3.0)):
+        x = 6 + i * 48
+        fin_num = etiquette(str(i + 1), x, yc) + ecart
+        stries = _rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), d)
+        des.prismes.append((stries, h))
+        lignes.append(f"- {i + 1} : stries de {_mm(h)} de haut")
 
     lignes += ["", f"Les numéros et le titre ont des points de {_mm(d.point_hauteur)}. "
                f"Socle de {_mm(d.socle)}.", ""]
@@ -1499,6 +1895,8 @@ def main() -> int:
     parser.add_argument("--echelle", type=int, choices=ECHELLES,
                         help="Échelle imposée (1/N) ; un niveau trop grand est coupé en parties.")
     parser.add_argument("--hauteur-murs", type=float, help=f"Relief des murs en mm (défaut {Dimensions.mur}).")
+    parser.add_argument("--hauteur-stries", type=float,
+                        help=f"Relief des stries d'escalier en mm (défaut {Dimensions.strie}).")
     parser.add_argument("--hauteur-points", type=float,
                         help=f"Hauteur des points braille en mm (défaut {Dimensions.point_hauteur}).")
     parser.add_argument("--eprouvette", action="store_true",
@@ -1515,6 +1913,10 @@ def main() -> int:
         if not 0.5 <= args.hauteur_murs <= 10:
             parser.error("--hauteur-murs : entre 0,5 et 10 mm")
         d = replace(d, mur=args.hauteur_murs)
+    if args.hauteur_stries is not None:
+        if not 0.5 <= args.hauteur_stries <= 5:
+            parser.error("--hauteur-stries : entre 0,5 et 5 mm")
+        d = replace(d, strie=args.hauteur_stries)
     if args.hauteur_points is not None:
         if not 0.3 <= args.hauteur_points <= 1.2:
             parser.error("--hauteur-points : entre 0,3 et 1,2 mm")
@@ -1546,11 +1948,17 @@ def main() -> int:
     except RuntimeError as erreur:
         sys.stderr.write(f"Erreur : {erreur}\n")
         return 1
+    except (OSError, ifcopenshell.Error) as erreur:
+        sys.stderr.write(f"Erreur : fichier IFC illisible ({erreur})\n")
+        return 1
     W, H = resume["plaque"]
     print(f"Échelle : 1/{resume['echelle']}, plaque de {W:.0f} × {H:.0f} mm")
     for f in resume["stl"]:
         print(f"STL : {f}")
     print(f"Légende : {resume['legende']}")
+    poses, ecarts = resume["reperes"]
+    if poses < ecarts:
+        print(f"Repères des écarts : {poses} dôme(s) sur {ecarts} posé(s) sur la plaque.")
     if resume["conseil"]:
         den_c, (cx, cy), faits, total = resume["conseil"]
         print(f"Numéros des locaux : {faits} sur {total} placés. Avec --echelle {den_c}, "

@@ -55,9 +55,9 @@ def plein(solide, x: float, y: float, z: float) -> bool:
 
 def sur_plaque(page, x: float, y: float, den: int) -> tuple[float, float]:
     """Coordonnées sur la plaque (mm) d'un point du bâtiment (m)."""
-    _, _, fen = page
+    _, des, fen = page
     k = 1000 / den
-    return D.marge + (x - fen[0]) * k, D.bandeau + (y - fen[1]) * k
+    return des.origine[0] + (x - fen[0]) * k, des.origine[1] + (y - fen[1]) * k
 
 
 def piece(porte_largeur: float = 0.90, exterieure: bool = True) -> Maquette:
@@ -301,8 +301,8 @@ def test_rampe_en_plan_incline_plus_haut_ou_elle_monte(tmp_path):
     page = resume["pages"][0]
     des = page[1]
     assert len(des.coins) == 1
-    _, (gx, gy), _, _ = des.coins[0]
-    assert (gx, gy) == pytest.approx((1.0, 0.0), abs=0.01)
+    _, a, b, _, _, _ = des.coins[0]
+    assert a > 0 and abs(b) < 0.01 * a  # le relief monte vers la droite (l'est)
     assert "5,0 %" in des.rampes[0] and "monte vers la droite" in des.rampes[0]
     solide = pt.relief(des, D)
     den = resume["echelle"]
@@ -360,7 +360,8 @@ def test_eprouvette(tmp_path):
     stl, md = pt.generer_eprouvette(tmp_path)
     assert stl_ferme(stl)
     texte = md.read_text(encoding="utf-8")
-    for rangee in ("hauteur des murs", "passage de porte", "points braille", "stries"):
+    for rangee in ("hauteur des murs", "passage de porte", "points braille", "écart des stries",
+                   "hauteur des stries"):
         assert rangee in texte
 
 
@@ -401,3 +402,258 @@ def test_ligne_de_commande_sans_fichier(tmp_path):
     sortie = subprocess.run([sys.executable, str(RACINE / "plan_tactile.py")],
                             capture_output=True, text=True)
     assert sortie.returncode == 2 and "--eprouvette" in sortie.stderr
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Défauts trouvés par la relecture de la v0.6.0 (un test par défaut)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def etage_a(m: Maquette, nom: str, z: float):
+    """Ajoute un niveau placé à l'altitude z, et en fait le niveau courant."""
+    import ifcopenshell.api.aggregate
+    niveau = m._creer("IfcBuildingStorey", nom)
+    niveau.ObjectPlacement = m.model.create_entity(
+        "IfcLocalPlacement", RelativePlacement=m.model.create_entity(
+            "IfcAxis2Placement3D", Location=m.model.create_entity(
+                "IfcCartesianPoint", Coordinates=(0.0, 0.0, z))))
+    niveau.Elevation = z
+    ifcopenshell.api.aggregate.assign_object(m.model, products=[niveau], relating_object=m.batiment)
+    m.etage = niveau
+    return niveau
+
+
+def poser_a(element, z: float) -> None:
+    """Pose l'élément à l'altitude z (monde), quel que soit le placement de son niveau."""
+    import ifcopenshell.util.placement
+    placement = element.ObjectPlacement
+    parent = placement.PlacementRelTo
+    z_parent = float(ifcopenshell.util.placement.get_local_placement(parent)[2, 3]) if parent else 0.0
+    loc = placement.RelativePlacement.Location
+    loc.Coordinates = (loc.Coordinates[0], loc.Coordinates[1], z - z_parent)
+
+
+def espace_a(m: Maquette, nom: str, x: float, y: float, dx: float, dy: float, z: float) -> None:
+    """Local de dx × dy m centré sur (x, y), au sol à l'altitude z."""
+    m.espace(nom, x, y, dx, dy)
+    poser_a(m.model.by_type("IfcSpace")[-1], z)
+
+
+def boite_murs(m: Maquette, z: float = 0.0):
+    """Quatre murs de 6 × 4 m posés à l'altitude z."""
+    for x0, y0, x1, y1 in ((0, 0, 6, 0), (0, 4, 6, 4), (0, 0, 0, 4), (6, 0, 6, 4)):
+        poser_a(m.mur(x0, y0, x1, y1), z)
+
+
+def test_escalier_monte_au_depart_et_descend_a_l_arrivee(tmp_path):
+    """L'escalier qui s'arrête 5 cm sous le niveau du haut (cas de la Duplex)
+    est dessiné aux deux niveaux : on y monte en bas, on y descend en haut."""
+    m = Maquette()
+    m.etage.ObjectPlacement = None
+    boite_murs(m)
+    m.espace("Hall", 3.0, 2.0, 5.8, 3.8)
+    m.escalier_dessine(18, 0.1694, 0.25, 1.0, origine=(0.6, 3.6, 0.0))  # 3,05 m
+    etage_a(m, "Étage", 3.10)
+    boite_murs(m, 3.10)
+    espace_a(m, "Palier", 3.0, 2.0, 5.6, 3.6, 3.10)
+    resume = generer(m, tmp_path)
+    bas, haut = resume["pages"][0][1], resume["pages"][1][1]
+    assert any("monte vers la droite" in t for t in bas.escaliers), bas.escaliers
+    assert any("descend vers la gauche" in t for t in haut.escaliers), haut.escaliers
+
+
+def test_volees_dans_l_ordre_ou_on_les_monte(tmp_path):
+    import ifcopenshell.api.aggregate
+    m = Maquette()
+    m.espace("Hall", 2.0, -1.0, 6.0, 5.0)
+    bas = m.escalier_dessine(3, 0.17, 0.28, 1.0, classe="IfcStairFlight", origine=(0.0, 0.0, 0.0))
+    haut = m.escalier_dessine(3, 0.17, 0.28, 1.0, angle_deg=180, classe="IfcStairFlight",
+                              origine=(0.84, -2.2, 0.51))
+    escalier = m._creer("IfcStair", "Escalier U")
+    m._ranger_contenu(escalier)
+    ifcopenshell.api.aggregate.assign_object(m.model, products=[haut, bas], relating_object=escalier)
+    resume = generer(m, tmp_path)
+    assert "Escalier « Escalier U », 2 volées, monte vers la droite, puis vers la gauche" \
+        in resume["legende"].read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("cas,pieces,attendu", [
+    ("en L", [((0.0, 0.0, 0.0), (1.0, 0.0), [(0.0, 0.0), (3.0, 0.21), (3.0, 0.0)], 1.40),
+              ((3.0, 0.0, 0.0), (0.0, 1.0), [(0.0, 0.21), (3.0, 0.42), (3.0, 0.0), (0.0, 0.0)], 1.40)],
+     "2 parties en pente, monte vers la droite (7,0 %), puis vers le haut (7,0 %)"),
+    ("demi-tour", [((0.0, 0.0, 0.0), (1.0, 0.0), [(0.0, 0.0), (5.0, 0.30), (5.0, 0.0)], 1.40),
+                   ((5.0, 1.50, 0.0), (-1.0, 0.0), [(0.0, 0.30), (5.0, 0.60), (5.0, 0.0), (0.0, 0.0)], 1.40)],
+     "2 parties en pente, monte vers la droite (6,0 %), puis vers la gauche (6,0 %)"),
+])
+def test_rampe_d_un_seul_tenant_qui_tourne(tmp_path, cas, pieces, attendu):
+    m = Maquette()
+    m.espace("Parvis", 2.5, 1.0, 9.0, 8.0)
+    m.rampe_profils(pieces, nom="Rampe")
+    resume = generer(m, tmp_path)
+    page = resume["pages"][0]
+    des, den = page[1], resume["echelle"]
+    assert any(attendu in t for t in des.rampes), des.rampes
+    # Le relief suit l'altitude : plus haut au bout de la deuxième partie
+    # qu'au bout de la première, et plus haut là qu'au départ.
+    solide = pt.relief(des, D)
+    if cas == "en L":
+        depart, milieu, arrivee = (0.2, -0.7), (2.8, -0.7), (3.7, 2.8)
+    else:
+        depart, milieu, arrivee = (0.2, -0.7), (4.8, -0.7), (0.2, 2.2)
+
+    def hauteur(x, y):
+        return max((z for z in np.arange(D.socle, D.socle + D.rampe_haut + 0.3, 0.05)
+                    if plein(solide, *sur_plaque(page, x, y, den), z)), default=0.0)
+    assert hauteur(*depart) < hauteur(*milieu) < hauteur(*arrivee)
+
+
+def test_porte_dans_un_mur_epais_non_perce(tmp_path):
+    """Une porte posée au nu intérieur d'un mur de 0,70 m, sans ouverture
+    dans le mur : le passage traverse toute l'épaisseur."""
+    m = Maquette()
+    m.mur(0, 0, 8, 0, epaisseur=0.70)
+    m.mur(0, 5, 8, 5)
+    m.mur(0, 0, 0, 5)
+    m.mur(8, 0, 8, 5)
+    m.porte_boite(3.0, 0.25, 0.9, 0.10, 0.9)
+    m.espace("Salle", 4.0, 2.5, 7.8, 4.8)
+    resume = generer(m, tmp_path)
+    page = resume["pages"][0]
+    solide = pt.relief(page[1], D)
+    for y in np.linspace(-0.33, 0.33, 7):
+        assert not plein(solide, *sur_plaque(page, 3.45, y, resume["echelle"]), D.socle + 0.5), y
+
+
+def test_coupe_de_solides_qui_se_chevauchent():
+    """Deux boîtes d'un même élément qui se chevauchent, ou l'une dans
+    l'autre : la section est leur réunion, sans trou."""
+    a, b = _boite(0, 0, 2, 0.2, 0, 3), _boite(1.5, 0, 4, 0.2, 0, 3)
+    deux = pt.Maillage(np.vstack([a.sommets, b.sommets]), np.vstack([a.faces, b.faces + 8]))
+    assert pt.coupe(deux, 1.0).area == pytest.approx(4 * 0.2)
+    c, e = _boite(0, 0, 4, 4, 0, 3), _boite(1, 1, 2, 2, 0, 3)
+    dedans = pt.Maillage(np.vstack([c.sommets, e.sommets]), np.vstack([c.faces, e.faces + 8]))
+    assert pt.coupe(dedans, 1.0).area == pytest.approx(16)
+
+
+def _deux_locaux() -> Maquette:
+    """Un petit local (1,4 × 1,4 m) à côté d'un grand (4 × 3 m)."""
+    m = Maquette()
+    for x0, y0, x1, y1 in ((0, 0, 6, 0), (0, 3, 6, 3), (0, 0, 0, 3), (6, 0, 6, 3),
+                           (1.6, 0, 1.6, 3), (0, 1.6, 1.6, 1.6)):
+        m.mur(x0, y0, x1, y1)
+    m.espace("Placard", 0.1, 0.1, 1.5, 1.5)
+    m.espace("Salle", 1.7, 0.1, 5.9, 2.9)
+    return m
+
+
+def test_dome_ne_passe_pas_dans_le_local_voisin(tmp_path):
+    m = _deux_locaux()
+    chemin = tmp_path / "m.ifc"
+    m.model.write(str(chemin))
+    import ifcopenshell
+    niveaux, _ = pt.lire_niveaux(ifcopenshell.open(str(chemin)), D)
+    niv = niveaux[0]
+    niv.reperes.append(pt.Repere((0.8, 0.8), ["écart dans le placard"]))
+    page = pt.Page(niv, "plan 1", (-0.3, -0.3, 6.3, 3.3), 110.0, 70.0)
+    des = pt.dessiner(page, 200, D, None)
+    salle = next(l for l in niv.locaux if l.nom == "Salle").forme
+    for x, y, diametre, _ in des.domes:
+        if diametre == D.repere_diametre:
+            bx = (x - des.origine[0]) / 5 - 0.3
+            by = (y - des.origine[1]) / 5 - 0.3
+            assert not salle.contains(pt.Point(bx, by))
+    assert des.reperes and des.reperes[0][3] is False  # pas de place : dit dans la légende
+
+
+def test_triangle_d_entree_ne_traverse_pas_un_mur(tmp_path):
+    """Un muret à 0,50 m devant une porte extérieure : pas de place pour le
+    triangle entre les deux, et il ne passe pas de l'autre côté du muret."""
+    m = piece()
+    m.mur(-1.0, -0.55, 7.0, -0.55, epaisseur=0.10, nom="Muret")
+    resume = generer(m, tmp_path, echelle=100)  # 4 mm entre le mur et le muret
+    des = resume["pages"][0][1]
+    assert des.entrees == 0 and des.entrees_sans_place == 1
+    assert "sans triangle" in resume["legende"].read_text(encoding="utf-8")
+
+
+def test_niveaux_au_meme_placement_et_elevations_differentes(tmp_path):
+    """Les deux niveaux sont posés au placement du bâtiment (z = 10 m) ; seul
+    Elevation les distingue. Murs et locaux sont à 10 m et à 13 m."""
+    m = Maquette()
+    m.etage.ObjectPlacement = None
+    rdc = etage_a(m, "RDC", 10.0)
+    rdc.Elevation = 0.0
+    boite_murs(m, 10.0)
+    espace_a(m, "Bureau", 3.0, 2.0, 5.6, 3.6, 10.0)
+    r1 = etage_a(m, "R+1", 10.0)
+    r1.Elevation = 3.0
+    boite_murs(m, 13.0)
+    espace_a(m, "Bureau 2", 3.0, 2.0, 5.6, 3.6, 13.0)
+    m.model.remove(m.model.by_type("IfcBuildingStorey")[0])
+    assert generer(m, tmp_path)["niveaux"] == 2
+
+
+def test_maquette_sans_niveau(tmp_path):
+    m = Maquette()
+    boite_murs(m)
+    m.espace("Bureau", 3.0, 2.0, 5.8, 3.8)
+    for rel in list(m.model.by_type("IfcRelContainedInSpatialStructure")):
+        rel.RelatingStructure = m.batiment
+    m.model.remove(m.etage)
+    resume = generer(m, tmp_path)
+    assert resume["niveaux"] == 1
+    assert "pas de niveau" in resume["legende"].read_text(encoding="utf-8")
+
+
+def test_noms_venus_de_la_maquette_gardes_tels_quels_et_sans_effet_markdown(tmp_path):
+    m = Maquette()
+    boite_murs(m)
+    m.espace("Bureau\n## Plan 2 — faux titre [lien](http://exemple.org)", 3.0, 2.0, 5.8, 3.8)
+    m.rampe_dessinee([(6.0, 0.30)], largeur=1.40, nom="Rampe R.1 (v2.3)")
+    legende = generer(m, tmp_path)["legende"].read_text(encoding="utf-8")
+    assert not any(ligne.startswith("## Plan 2 — faux") for ligne in legende.splitlines())
+    assert "\\[lien\\]" in legende
+    assert "Rampe R.1 (v2.3)" in legende
+
+
+def test_ligne_de_commande_fichier_illisible(tmp_path):
+    faux = tmp_path / "faux.ifc"
+    faux.write_text("ceci n'est pas un IFC\n", encoding="utf-8")
+    sortie = subprocess.run([sys.executable, str(RACINE / "plan_tactile.py"), str(faux)],
+                            capture_output=True, text=True)
+    assert sortie.returncode == 1 and "illisible" in sortie.stderr
+    assert "Traceback" not in sortie.stderr
+
+
+def test_anciennes_plaques_retirees(tmp_path):
+    m = piece()
+    en_parties = generer(m, tmp_path, echelle=50, plateau=(110, 70))
+    assert len(en_parties["stl"]) > 1
+    une = generer(m, tmp_path)
+    restants = sorted(p.name for p in (tmp_path / "plan").glob("*.stl"))
+    assert restants == sorted(p.name for p in une["stl"])
+
+
+def test_eprouvette_passages_proches_de_l_annonce(tmp_path):
+    """L'épaississement qui soude les reliefs ne rétrécit les passages de
+    l'éprouvette que de quelques centièmes de millimètre."""
+    from shapely.geometry import LineString, Polygon
+    from shapely.ops import unary_union
+    stl, _ = pt.generer_eprouvette(tmp_path, D)
+    donnees = stl.read_bytes()
+    n = int(np.frombuffer(donnees[80:84], dtype="<u4")[0])
+    v = np.frombuffer(donnees[84:84 + 50 * n], dtype=[("n", "<f4", 3), ("v", "<f4", (3, 3)),
+                                                      ("a", "<u2")])["v"].reshape(-1, 3)
+    sommets, ids = np.unique(v, axis=0, return_inverse=True)
+    solide = manifold3d.Manifold(manifold3d.Mesh(vert_properties=sommets.astype(np.float32),
+                                                 tri_verts=ids.reshape(-1, 3).astype(np.uint32)))
+    murs = unary_union([Polygon(c) for c in solide.slice(D.socle + 1.0).to_polygons()]).buffer(0)
+    ligne = LineString([(0, 76.0), (150, 76.0)]).intersection(murs)
+    morceaux = sorted((seg.bounds[0], seg.bounds[2]) for seg in getattr(ligne, "geoms", [ligne]))
+    ecarts = [round(b[0] - a[1], 2) for a, b in zip(morceaux, morceaux[1:])]
+    passages = [e for e in ecarts if e < 10]
+    assert passages == pytest.approx([3.0, 5.0, 8.0], abs=0.12), ecarts
+
+
+def test_texte_md_neutralise_la_structure():
+    from audit_ifc_rgaa import texte_md
+    assert texte_md("Bureau\r\n# Titre\t[a](b) `c` *d*") == "Bureau # Titre \\[a\\](b) \\`c\\` \\*d\\*"

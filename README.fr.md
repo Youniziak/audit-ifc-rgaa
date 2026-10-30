@@ -195,7 +195,9 @@ niveau et une légende en Markdown (lisible au lecteur d'écran). Sur la plaque 
 murs en relief, fenêtres en relief plus bas, portes ouvertes dans le mur,
 escaliers en stries, rampes en plan incliné, ascenseurs en plateau, numéros
 des locaux en braille. La légende donne le nom de chaque local, le sens des
-symboles et l'échelle.
+symboles et l'échelle, le sens de chaque escalier et de chaque rampe, et dit
+ce qui n'a pas pu aller sur la plaque à cette échelle (escalier trop petit,
+dôme sans place dans son local, porte sans triangle).
 
 - `--neuf` ou `--existant` : lance aussi l'audit et marque chaque élément non
   conforme d'un dôme en relief ; la légende donne ses constats.
@@ -205,8 +207,9 @@ symboles et l'échelle.
   trop de locaux n'ont pas pu recevoir leur numéro.
 - `--plateau 250x210` : taille maximale de la plaque, en mm (200 × 200 par défaut).
 - `--eprouvette` : plaque d'essai (hauteurs de murs, passages, points braille,
-  stries) à imprimer et toucher avant le premier plan ; `--hauteur-murs` et
-  `--hauteur-points` règlent ensuite le plan.
+  écart et hauteur des stries) à imprimer et toucher avant le premier plan ;
+  `--hauteur-murs`, `--hauteur-stries` et `--hauteur-points` règlent ensuite
+  le plan.
 - `--pdf` : légende aussi en PDF accessible, vérifiée par veraPDF s'il est installé (comme pour l'audit).
 
 Les dimensions, leurs sources (ISO 17049, ISO 19028, BANA) et ce qui reste à

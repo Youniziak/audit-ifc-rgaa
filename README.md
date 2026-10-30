@@ -209,7 +209,10 @@ Writes one STL file per level and a Markdown key (readable with a screen
 reader) into `exemples/test_house_plan_tactile/`. On the plate: raised
 walls, lower raised windows, doors as gaps in the wall, stairs as ridges,
 ramps as a sloping surface, lifts as a plateau, room numbers in French
-braille. The key gives each room's name, the symbols and the scale.
+braille. The key gives each room's name, the symbols, the scale and the
+direction of every stair and ramp, and says what could not fit on the plate
+at that scale (a stair too small, a dome with no room left, a door without
+its triangle).
 
 - `--neuf` or `--existant`: also runs the audit and marks every
   non-compliant element with a raised dome; the key lists the findings.
@@ -219,8 +222,9 @@ braille. The key gives each room's name, the symbols and the scale.
   many rooms could not get their number.
 - `--plateau 250x210`: maximum plate size in mm (200 × 200 by default).
 - `--eprouvette`: a test plate (wall heights, door gaps, braille dot heights,
-  stair ridges) to print and touch before the first plan; `--hauteur-murs`
-  and `--hauteur-points` then adjust the plan.
+  stair ridge spacing and height) to print and touch before the first plan;
+  `--hauteur-murs`, `--hauteur-stries` and `--hauteur-points` then adjust
+  the plan.
 - `--pdf`: the key also as an accessible PDF, checked with veraPDF when it is installed (as for the audit).
 
 The dimensions, their sources (ISO 17049, ISO 19028, BANA) and what still

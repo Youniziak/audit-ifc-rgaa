@@ -1449,6 +1449,19 @@ def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
 _NOMS_FEMININS = {"Portes", "Rampes"}
 
 
+_ESPACES = re.compile(r"[\s\x00-\x1f\x7f\u0085\u2028\u2029]+")
+_A_ECHAPPER = re.compile(r"([\\`*\[\]])")
+
+
+def texte_md(texte) -> str:
+    """Texte venu de la maquette (nom, constat), prêt à entrer dans une ligne
+    Markdown : retours à la ligne et caractères de contrôle remplacés par une
+    espace (sinon un nom pourrait ouvrir un faux titre ou un faux élément de
+    liste), et \\ ` * [ ] échappés (liens, code, gras). Le reste est gardé
+    tel quel, pour rester lisible dans le fichier Markdown lui-même."""
+    return _A_ECHAPPER.sub(r"\\\1", _ESPACES.sub(" ", str(texte)).strip())
+
+
 def _taux(rapport: RapportAudit) -> str:
     """Taux de conformité en écriture française, ex. « 66,7 % »."""
     return f"{rapport.taux_conformite:.1f}".replace(".", ",") + " %"
@@ -1497,12 +1510,12 @@ def generer_rapport_markdown(rapport: RapportAudit) -> str:
         for element_type, items in par_type.items():
             lignes.append(f"### {element_type}\n")
             for i, nc in enumerate(items, 1):
-                lignes.append(f"#### {i}. {nc.nom}\n")
-                lignes.append(f"- **Identifiant IFC (GlobalId)** : `{nc.global_id}`")
+                lignes.append(f"#### {i}. {texte_md(nc.nom)}\n")
+                lignes.append(f"- **Identifiant IFC (GlobalId)** : `{texte_md(nc.global_id)}`")
                 lignes.append(f"- **Sévérité** : {nc.severite}")
-                lignes.append(f"- **Article applicable** : {nc.article}")
-                lignes.append(f"- **Constat** : {nc.constat}")
-                lignes.append(f"- **Exigence** : {nc.exigence}\n")
+                lignes.append(f"- **Article applicable** : {texte_md(nc.article)}")
+                lignes.append(f"- **Constat** : {texte_md(nc.constat)}")
+                lignes.append(f"- **Exigence** : {texte_md(nc.exigence)}\n")
     else:
         lignes.append("## Non-conformités relevées\n")
         lignes.append("Aucune non-conformité détectée par les contrôles automatisés. ")
@@ -1549,7 +1562,7 @@ def generer_rapport_markdown(rapport: RapportAudit) -> str:
         "3,20 m), commandes et libre accès non vérifiés"
     )
     for remarque in rapport.remarques:
-        lignes.append(f"- {remarque}")
+        lignes.append(f"- {texte_md(remarque)}")
     lignes.append("")
 
     # Pied de page
