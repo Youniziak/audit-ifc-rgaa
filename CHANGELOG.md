@@ -10,8 +10,10 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ### Ajouté
 
 - **Longueur des plans inclinés**, mesurée en plan sur la géométrie (les
-  faces du dessus donnent le sens de la montée, dans toute orientation). Elle
-  dit si une pente tolérée l'est vraiment (2 m ou 0,50 m au plus).
+  faces du dessus, regroupées par sens et valeur de pente, donnent le sens de
+  la montée, dans toute orientation). Elle dit si une pente tolérée l'est
+  vraiment (2 m ou 0,50 m au plus). Une rampe qui change de direction n'est
+  pas mesurée : le rapport demande de la décomposer en volées.
 - **Paliers de repos** (article 2 et annexe 2) : une volée de plus de 10 m,
   dès 4 % de pente (neuf) ou 5 % (existant), est signalée ; les paliers
   modélisés dans une rampe doivent mesurer 1,20 × 1,40 m au moins. Une rampe
@@ -20,7 +22,9 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   déclarée (`IfcDoorLiningProperties.ThresholdThickness`) jugée sur 2 cm, et
   4 cm avec un chanfrein de 33 % au plus.
 - Comparaison terrain : mesure `Ressaut` sur une porte.
-- Tests `tests/test_rampes_seuils.py`.
+- Tests `tests/test_rampes_seuils.py`, dont les cas trouvés en relecture :
+  dalle inclinée à bouts d'équerre, palier compris dans le même objet, rampe
+  en L ou à demi-tour, pente négative, en texte ou sans unité d'angle.
 
 ### Corrigé
 
@@ -31,9 +35,10 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   de 1 n'est plus devinée (degrés ou pour cent ?).
 - Rampe sans pente lisible : signalée dans les limites du rapport, au lieu
   d'être déclarée « bloquante ».
-- Existant : les limites du rapport rappellent que l'article 6 écarte les
-  espaces de manœuvre de porte dans les étages non accessibles en fauteuil
-  roulant.
+- Existant : les limites du rapport rappellent la question que pose
+  l'article 6 pour les espaces de manœuvre de porte dans les étages non
+  accessibles en fauteuil roulant (l'article 10, base du contrôle, ne prévoit
+  pas cette exception).
 
 ## [0.4.1] — 2026-10-30
 

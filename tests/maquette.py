@@ -217,6 +217,42 @@ class Maquette:
         ifcopenshell.api.aggregate.assign_object(self.model, products=parties, relating_object=rampe)
         return rampe
 
+    def rampe_profils(self, pieces, nom: str = "Rampe d'un seul tenant"):
+        """Rampe d'un seul objet, faite de plusieurs morceaux extrudés.
+
+        Chaque morceau : (origine (x, y, z), sens de la montée (dx, dy),
+        profil [(abscisse, altitude), …] dans ce sens, largeur). Le profil est
+        extrudé sur la largeur, à droite du sens de la montée."""
+        items = []
+        for origine, (dx, dy), points, largeur in pieces:
+            pts = [self.model.create_entity("IfcCartesianPoint", Coordinates=c)
+                   for c in list(points) + [points[0]]]
+            profil = self.model.create_entity(
+                "IfcArbitraryClosedProfileDef", ProfileType="AREA",
+                OuterCurve=self.model.create_entity("IfcPolyline", Points=pts),
+            )
+            items.append(self.model.create_entity(
+                "IfcExtrudedAreaSolid", SweptArea=profil,
+                Position=self.model.create_entity(
+                    "IfcAxis2Placement3D",
+                    Location=self.model.create_entity("IfcCartesianPoint", Coordinates=origine),
+                    Axis=self.model.create_entity("IfcDirection", DirectionRatios=(dy, -dx, 0.0)),
+                    RefDirection=self.model.create_entity("IfcDirection", DirectionRatios=(dx, dy, 0.0)),
+                ),
+                ExtrudedDirection=self.model.create_entity("IfcDirection", DirectionRatios=(0.0, 0.0, 1.0)),
+                Depth=largeur,
+            ))
+        rampe = self._creer("IfcRamp", nom)
+        forme = self.model.create_entity(
+            "IfcShapeRepresentation", ContextOfItems=self.body,
+            RepresentationIdentifier="Body", RepresentationType="SweptSolid", Items=items,
+        )
+        rampe.Representation = self.model.create_entity(
+            "IfcProductDefinitionShape", Representations=[forme])
+        rampe.ObjectPlacement = self._placement(0.0, 0.0)
+        self._ranger_contenu(rampe)
+        return rampe
+
     def pente_declaree(self, element, valeur, type_ifc: str = "IfcPlaneAngleMeasure",
                        pset: str = "Pset_RampFlightCommon", propriete: str = "Slope") -> None:
         """Ajoute une pente déclarée, avec son type IFC exact."""

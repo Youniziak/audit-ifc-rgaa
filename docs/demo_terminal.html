@@ -254,7 +254,7 @@ const STEPS = [
   "lines": [
    "# Rapport d'audit d'accessibilité — test_erp_avec_espaces.ifc",
    "",
-   "**Date de l'audit** : 2026-10-30 04:36:01  ",
+   "**Date de l'audit** : 2026-10-30 04:48:59  ",
    "**Fichier source** : `exemples/test_erp_avec_espaces.ifc`  ",
    "**Schéma IFC** : IFC4  ",
    "**Référentiel appliqué** : arrêté du 8 décembre 2014 — accessibilité des ERP existants ([texte sur Légifrance](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000029893131/)).",
@@ -327,7 +327,7 @@ const STEPS = [
    "- Plans inclinés : longueur mesurée en plan sur la géométrie quand elle existe ; paliers de repos en haut et en bas non vérifiés",
    "- Ressauts : seuls les seuils de porte déclarés dans le BIM sont contrôlés, d'après leur épaisseur ; bord arrondi ou chanfrein, distance de 2,50 m entre ressauts successifs et pas d'âne non vérifiés",
    "- Espace de manœuvre de porte : contrôle de premier niveau sur la boîte englobante de chaque espace ; mobilier, position de la porte le long de la circulation et débattement de la porte non pris en compte",
-   "- Existant : l'article 6 écarte, dans les étages non accessibles aux personnes circulant en fauteuil roulant, les dispositions de l'article 2 sur les espaces de manœuvre de porte ; l'outil ne sait pas quels étages sont accessibles",
+   "- Existant : dans les étages non accessibles aux personnes circulant en fauteuil roulant, l'article 6 n'applique pas aux circulations les dispositions de l'article 2 sur le demi-tour et les espaces de manœuvre de porte ; l'article 10, sur lequel l'outil fonde ce contrôle, exige l'espace de manœuvre devant chaque porte sans prévoir cette exception. À apprécier par l'auditeur selon les étages",
    "- Ascenseurs : desserte de tous les étages ouverts au public, commandes, signalisation et position des portes de cabine non vérifiées ; élévateurs : porte ou portillon (0,90 m, soit 0,83 m de passage utile), charge (250 kg/m²), type d'appareil selon la hauteur de course (0,50 m, 1,20 m, 3,20 m), commandes et libre accès non vérifiés",
    "",
    "---",
@@ -370,9 +370,9 @@ const STEPS = [
   "t": "out",
   "delay": 120,
   "lines": [
-   "........................................................ [ 76%]",
-   ".................                                        [100%]",
-   "73 passed in 1.34s"
+   "........................................................ [ 69%]",
+   ".........................                                [100%]",
+   "81 passed in 1.28s"
   ]
  }
 ];

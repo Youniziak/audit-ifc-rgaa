@@ -182,10 +182,12 @@ EXISTANT = Referentiel(
         "nécessaire"
     ),
     note_manoeuvre=(
-        "Existant : l'article 6 écarte, dans les étages non accessibles aux "
-        "personnes circulant en fauteuil roulant, les dispositions de l'article 2 "
-        "sur les espaces de manœuvre de porte ; l'outil ne sait pas quels étages "
-        "sont accessibles"
+        "Existant : dans les étages non accessibles aux personnes circulant en "
+        "fauteuil roulant, l'article 6 n'applique pas aux circulations les "
+        "dispositions de l'article 2 sur le demi-tour et les espaces de manœuvre "
+        "de porte ; l'article 10, sur lequel l'outil fonde ce contrôle, exige "
+        "l'espace de manœuvre devant chaque porte sans prévoir cette exception. "
+        "À apprécier par l'auditeur selon les étages"
     ),
     note_ascenseur=(
         "Le texte admet une exception : lorsque des éléments participant à la "

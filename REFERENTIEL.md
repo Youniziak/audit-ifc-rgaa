@@ -80,10 +80,18 @@ intégralité dans le cheminement ».
   dernier recours `Pset_RampCommon.RequiredSlope` (la pente exigée par le
   projet). Si la pente déclarée et la géométrie diffèrent de plus d'un demi
   point, le rapport donne les deux.
-- **Longueur.** Il la mesure en plan sur la géométrie : les faces du dessus
-  de la rampe donnent le sens de la montée, et l'étendue de la rampe dans ce
-  sens donne sa longueur. Cela vaut quelle que soit l'orientation de la rampe,
-  pour un coin plein comme pour une dalle inclinée.
+- **Longueur.** Il la mesure en plan sur la géométrie. Il garde les faces du
+  dessus, inclinées de moins de 45° (les abouts et les chanfreins raides sont
+  écartés), et les regroupe par sens de montée et par valeur de pente. Le
+  groupe le plus étendu donne la pente, le sens de la montée, et la longueur :
+  l'étendue du groupe dans ce sens. Cela vaut quelle que soit l'orientation
+  de la rampe, pour un coin plein comme pour une dalle inclinée. Si des
+  paliers sont compris dans le même objet, la longueur retenue est celle de la
+  plus longue partie en pente continue.
+- **Rampe qui change de direction** (en L, à demi-tour, courbe) : la
+  géométrie ne donne pas une pente unique, l'outil ne mesure rien et le
+  rapport demande de décomposer la rampe en volées (`IfcRampFlight`) ou de
+  vérifier sur plan. Une pente déclarée reste utilisée, longueur à vérifier.
 - Pente au-delà de toute tolérance : bloquante. Pente tolérée : conforme si
   la longueur respecte la tolérance (2 m ou 0,50 m), majeure sinon ; majeure,
   longueur à vérifier, si la géométrie manque.
@@ -99,7 +107,8 @@ intégralité dans le cheminement ».
 
 Non vérifié : les paliers en haut et en bas des plans inclinés (ils font
 partie du sol des pièces ou des circulations), la longueur mesurée le long de
-la pente plutôt qu'en plan (moins de 1 % d'écart sous 12 %).
+la pente plutôt qu'en plan (moins de 1 % d'écart sous 12 %), des volées qui se
+suivent sans palier entre elles (chacune est jugée seule).
 
 Les pentes relèvent de l'article 2 (cheminements extérieurs), que l'article 6
 applique aux circulations intérieures. L'article 7.2 (7-2 pour le neuf) porte
@@ -107,14 +116,17 @@ sur les ascenseurs : les versions 0.1 à 0.3 le citaient à tort pour les rampes
 
 ## Ressauts et seuils de porte — article 2, repris par l'article 6
 
-Identique dans les deux textes : « Lorsqu'il ne peut être évité, un faible
+Les deux textes fixent les mêmes hauteurs : « Lorsqu'il ne peut être évité, un faible
 écart de niveau peut être traité par un ressaut à bord arrondi ou muni d'un
 chanfrein et dont la hauteur est inférieure ou égale à 2 cm. Cette hauteur
 maximale peut toutefois être portée à 4 cm si le ressaut comporte sur toute sa
 hauteur une pente ne dépassant pas 33 %. » Deux ressauts successifs sont
 distants de 2,50 m au moins, les « pas d'âne » sont interdits, et un plan
 incliné ne présente pas de ressaut en haut ni en bas, sauf les seuils et pas
-de porte. Un seuil de porte est donc un ressaut, soumis à ces hauteurs.
+de porte. Un seuil de porte est donc un ressaut, soumis à ces hauteurs. À
+l'entrée du bâtiment, l'article 4 pose la même règle (« L'accès est horizontal
+et sans ressaut », mêmes 2 et 4 cm). L'article 10, sur les portes, ne parle
+pas des seuils.
 
 Ce que fait l'outil (depuis la 0.4.2) :
 
@@ -185,10 +197,18 @@ C'est un contrôle de premier niveau : il ne tient compte ni du mobilier, ni de
 la position de la porte le long de la circulation, ni du débattement de la
 porte, et il ne sait pas si un sanitaire est adapté.
 
-**Existant** : l'article 6 de l'arrêté de 2014 écarte, « dans les étages non
-accessibles aux personnes circulant en fauteuil roulant », les dispositions de
-l'article 2 sur les espaces de manœuvre de porte. L'outil ne sait pas quels
-étages sont accessibles : le rapport le rappelle dans ses limites.
+**Existant** : l'article 6 de l'arrêté de 2014 applique aux circulations
+intérieures les exigences de l'article 2, « à l'exception des dispositions
+concernant l'aménagement d'espaces de manœuvre avec possibilité de demi-tour
+ainsi que les espaces de manœuvre de porte pour une personne circulant en
+fauteuil roulant dans les étages non accessibles aux personnes circulant en
+fauteuil roulant ». Cette exception porte sur ce que l'article 6 reprend de
+l'article 2. L'outil fonde son contrôle sur l'article 10, qui exige l'espace
+de manœuvre « devant chaque porte » et ne prévoit d'exception que pour les
+portes ouvrant uniquement sur un escalier et celles des sanitaires, douches et
+cabines non adaptés. Les constats restent donc valables ; le rapport rappelle
+seulement que la question se pose pour les étages non accessibles, à
+l'appréciation de l'auditeur.
 
 ## Ascenseurs et élévateurs — article 7-2 (neuf) ou 7.2 (existant), annexe 1
 

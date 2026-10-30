@@ -303,64 +303,116 @@ def _valeur_typee(element, pset_nom: str, prop_nom: str):
 
 
 def _ratio_de_pente(valeur, type_ifc: str, echelle_angle: float) -> Optional[float]:
-    """Convertit une pente déclarée en ratio (0,05 = 5 %), ou None si ambiguë.
+    """Convertit une pente déclarée en ratio (0,05 = 5 %), ou None si illisible.
 
     Un angle (IfcPlaneAngleMeasure) est converti selon l'unité d'angle du
     projet. Une valeur sans unité est lue comme un ratio si elle vaut 1 au
-    plus ; au-delà, on ne peut pas savoir si ce sont des degrés ou des pour cent.
+    plus ; au-delà, on ne peut pas savoir si ce sont des degrés ou des pour
+    cent. Une pente de plus de 100 % (45°) n'est pas plausible pour un plan
+    incliné : c'est le signe d'une unité mal renseignée, la valeur est écartée.
+    Le signe est ignoré (une rampe descend dans un sens, monte dans l'autre).
     """
     import math
+    try:
+        valeur = abs(float(valeur))
+    except (TypeError, ValueError):
+        return None  # pente écrite en texte, par exemple
     if type_ifc == "IfcPlaneAngleMeasure":
-        return math.tan(float(valeur) * echelle_angle)
-    valeur = float(valeur)
-    if 0 <= valeur <= 1:
-        return valeur
-    return None
+        ratio = math.tan(valeur * echelle_angle) if valeur * echelle_angle < math.pi / 2 else None
+    elif valeur <= 1:
+        ratio = valeur
+    else:
+        return None
+    if ratio is None or ratio > 1:
+        return None
+    return round(ratio, 4)
 
 
-def _geometrie_pente(element) -> tuple[Optional[float], Optional[float]]:
-    """(pente, longueur en plan) mesurées sur la géométrie, ou (None, None).
+def _geometrie_pente(element) -> tuple[Optional[float], Optional[float], int]:
+    """(pente, longueur en plan, nombre de parties) mesurées sur la géométrie.
 
-    On garde les faces tournées vers le haut et inclinées (le dessus du plan
-    incliné) : leur normale donne la pente et le sens de la montée, et
-    l'étendue de leurs sommets dans ce sens donne la longueur en plan. Marche
-    pour un coin plein comme pour une dalle inclinée, dans toute orientation.
+    On garde les faces tournées vers le haut et inclinées de moins de 45°
+    (le dessus du plan incliné ; les abouts et les chanfreins raides sont
+    écartés), puis on les regroupe par orientation, à 10° près. Le groupe le
+    plus étendu donne la pente et le sens de la montée. Si un autre groupe
+    pèse au moins le quart du premier, la rampe change de direction (en L,
+    à demi-tour, courbe) : la mesure est abandonnée, (None, None, -1).
+    Sans face inclinée exploitable : (None, None, 0).
+
+    La longueur est l'étendue du groupe dans le sens de la montée. Si cette
+    étendue est coupée par des paliers compris dans le même objet, on
+    renvoie la plus longue partie en pente continue, et le nombre de parties.
     """
     import math
+    vide = (None, None, 0)
     try:
         settings = ifcopenshell.geom.settings()
         settings.set("use-world-coords", True)
         geo = ifcopenshell.geom.create_shape(settings, element).geometry
     except Exception:
-        return None, None
+        return vide
     v, f = geo.verts, geo.faces
     if not v or not f:
-        return None, None
-    gx = gy = poids = 0.0
-    sommets = []
+        return vide
+
+    faces = []  # (aire, normale unitaire, sommets)
     for i in range(0, len(f), 3):
         a, b, c = (v[3 * f[i + k]: 3 * f[i + k] + 3] for k in range(3))
         u = [b[j] - a[j] for j in range(3)]
         w = [c[j] - a[j] for j in range(3)]
         n = (u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0])
-        aire2 = math.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
-        if aire2 == 0:
+        norme = math.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+        if norme == 0:
             continue
-        nx, ny, nz = (x / aire2 for x in n)
-        horizontal = math.hypot(nx, ny)
-        if nz <= 0.1 or horizontal < 1e-3:
-            continue  # face verticale, tournée vers le bas, ou horizontale
-        gx += -nx / nz * aire2
-        gy += -ny / nz * aire2
-        poids += aire2
-        sommets.extend((a, b, c))
-    if poids == 0:
-        return None, None
-    gx, gy = gx / poids, gy / poids
-    pente = math.hypot(gx, gy)
-    ux, uy = gx / pente, gy / pente
-    projections = [p[0] * ux + p[1] * uy for p in sommets]
-    return pente, max(projections) - min(projections)
+        n = tuple(x / norme for x in n)
+        if n[2] <= 0:
+            continue  # face verticale ou tournée vers le bas
+        pente = math.hypot(n[0], n[1]) / n[2]
+        if pente < 1e-4 or pente >= 1:
+            continue  # face horizontale, ou trop raide pour un plan incliné
+        faces.append((norme / 2, n, (a, b, c)))
+    if not faces:
+        return vide
+
+    # Regroupement par pente : même sens de montée (à 10° près) et même valeur
+    # (à 25 % près). Comparer les normales ne suffit pas : à 5 %, une face
+    # inclinée ne s'écarte de l'horizontale que de 3°.
+    groupes = []  # [aire, gradient pondéré (gx, gy), faces]
+    for face in sorted(faces, key=lambda x: -x[0]):
+        aire, n, _ = face
+        g = (-n[0] / n[2], -n[1] / n[2])
+        for groupe in groupes:
+            rx, ry = groupe[1][0] / groupe[0], groupe[1][1] / groupe[0]
+            r, m = math.hypot(rx, ry), math.hypot(*g)
+            cos_angle = (rx * g[0] + ry * g[1]) / (r * m)
+            if cos_angle > math.cos(math.radians(10)) and abs(m - r) <= 0.25 * r:
+                groupe[0] += aire
+                groupe[1] = (groupe[1][0] + g[0] * aire, groupe[1][1] + g[1] * aire)
+                groupe[2].append(face)
+                break
+        else:
+            groupes.append([aire, (g[0] * aire, g[1] * aire), [face]])
+    groupes.sort(key=lambda g: -g[0])
+    if len(groupes) > 1 and groupes[1][0] >= 0.25 * groupes[0][0]:
+        return None, None, -1
+
+    aire, (gx, gy), _ = groupes[0]
+    pente = math.hypot(gx, gy) / aire
+    if pente < 1e-4:
+        return vide
+    ux, uy = gx / (pente * aire), gy / (pente * aire)
+    intervalles = sorted(
+        (min(p[0] * ux + p[1] * uy for p in sommets), max(p[0] * ux + p[1] * uy for p in sommets))
+        for _, _, sommets in groupes[0][2]
+    )
+    parties = [list(intervalles[0])]
+    for debut_i, fin_i in intervalles[1:]:
+        if debut_i <= parties[-1][1] + 0.05:
+            parties[-1][1] = max(parties[-1][1], fin_i)
+        else:
+            parties.append([debut_i, fin_i])
+    longueur = max(fin_p - debut_p for debut_p, fin_p in parties)
+    return round(pente, 4), round(longueur, 3), len(parties)
 
 
 def _plans_inclines(rampe) -> list:
@@ -391,7 +443,7 @@ def auditer_rampes(ifc_file, scale: float, rapport: RapportAudit) -> None:
     echelle_angle = ifcopenshell.util.unit.calculate_unit_scale(ifc_file, "PLANEANGLEUNIT")
     rampes = ifc_file.by_type("IfcRamp")
     rapport.elements_audites["Rampes"] = len(rampes)
-    sans_pente = paliers_controles = 0
+    sans_pente = paliers_controles = plusieurs_directions = 0
 
     for rampe in rampes:
         volees = _plans_inclines(rampe)
@@ -401,7 +453,9 @@ def auditer_rampes(ifc_file, scale: float, rapport: RapportAudit) -> None:
                 nom = f"{nom} — {_nom_lisible(volee)}"
             gid = volee.GlobalId
 
-            pente_geo, longueur = _geometrie_pente(volee)
+            pente_geo, longueur, parties = _geometrie_pente(volee)
+            if parties == -1:
+                plusieurs_directions += 1
             pente, origine = None, ""
             for objet in (volee, rampe):
                 for pset_nom, prop_nom in _PROPRIETES_PENTE:
@@ -431,6 +485,8 @@ def auditer_rampes(ifc_file, scale: float, rapport: RapportAudit) -> None:
             texte_longueur = ""
             if longueur is not None:  # coordonnées monde, en mètres
                 texte_longueur = f", sur {metres(longueur)} de long en plan"
+                if parties > 1:
+                    texte_longueur += " (plus longue partie en pente continue)"
 
             ecarts = []
             if pente > ref.pente_toleree_50cm:
@@ -492,6 +548,12 @@ def auditer_rampes(ifc_file, scale: float, rapport: RapportAudit) -> None:
                 ))
 
     rapport.elements_audites["Paliers de repos"] = paliers_controles
+    if plusieurs_directions:
+        rapport.remarques.append(
+            f"Pente et longueur non mesurées sur la géométrie pour {plusieurs_directions} "
+            "plan(s) incliné(s) qui change(nt) de direction (en L, à demi-tour, courbe) : "
+            "les décomposer en volées (IfcRampFlight) dans le BIM, ou vérifier sur plan"
+        )
     if sans_pente:
         rapport.remarques.append(
             f"Pente non contrôlée pour {sans_pente} plan(s) incliné(s) : ni pente "

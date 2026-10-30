@@ -101,6 +101,60 @@ def test_palier_trop_court(tmp_path):
     assert severites(m.auditer(tmp_path, NEUF), "Palier de repos") == ["majeure"]
 
 
+def test_dalle_inclinee_a_bouts_perpendiculaires(tmp_path):
+    # Dalle de 0,20 m d'épaisseur, 12 % sur 0,50 m, bouts coupés d'équerre :
+    # l'about haut ne doit pas être pris pour le dessus de la rampe.
+    t, L, h = 0.20, 0.50, 0.06
+    k = math.hypot(L, h)
+    sx, sz = -h / k * t, L / k * t                  # décalage perpendiculaire à la dalle
+    m = Maquette()
+    m.rampe_profils([((0.0, 0.0, 0.0), (1.0, 0.0),
+                      [(0.0, 0.0), (L, h), (L + sx, h + sz), (sx, sz)], 1.40)])
+    assert severites(m.auditer(tmp_path, EXISTANT), "Rampe") == []       # 12 % sur 0,50 m : toléré
+    assert severites(m.auditer(tmp_path, NEUF), "Rampe") == ["bloquante"]  # au-delà de 10 %
+
+
+def test_palier_compris_dans_le_meme_objet(tmp_path):
+    # Deux volées de 6 m à 4,5 % et un palier de 1,40 m, en un seul solide :
+    # chaque partie en pente fait 6 m, pas de palier manquant.
+    m = Maquette()
+    m.rampe_profils([((0.0, 0.0, 0.0), (1.0, 0.0),
+                      [(0.0, 0.0), (6.0, 0.27), (7.4, 0.27), (13.4, 0.54), (13.4, 0.0)], 1.40)])
+    rapport = m.auditer(tmp_path, NEUF)
+    assert severites(rapport, "Rampe") == []
+    assert "6,00 m de long en plan (plus longue partie en pente continue)" in constats(rapport, "Rampe")[0]
+
+
+@pytest.mark.parametrize("pieces", [
+    # En L : 3 m vers l'est, puis 3 m vers le nord, à 7 %
+    [((0.0, 0.0, 0.0), (1.0, 0.0), [(0.0, 0.0), (3.0, 0.21), (3.0, 0.0)], 1.40),
+     ((3.0, 0.0, 0.0), (0.0, 1.0), [(0.0, 0.21), (3.0, 0.42), (3.0, 0.0), (0.0, 0.0)], 1.40)],
+    # À demi-tour : 5 m vers l'est, puis 5 m vers l'ouest, à 6 %
+    [((0.0, 0.0, 0.0), (1.0, 0.0), [(0.0, 0.0), (5.0, 0.30), (5.0, 0.0)], 1.40),
+     ((5.0, 1.50, 0.0), (-1.0, 0.0), [(0.0, 0.30), (5.0, 0.60), (5.0, 0.0), (0.0, 0.0)], 1.40)],
+], ids=["en-L", "demi-tour"])
+def test_rampe_qui_change_de_direction(tmp_path, pieces):
+    # La géométrie ne donne pas une pente unique : rien n'est inventé, le
+    # rapport demande de décomposer la rampe ou de vérifier sur plan.
+    m = Maquette()
+    m.rampe_profils(pieces)
+    rapport = m.auditer(tmp_path, NEUF)
+    assert severites(rapport, "Rampe") == []
+    assert any("change(nt) de direction" in r for r in rapport.remarques)
+
+
+def test_demi_tour_avec_pente_declaree(tmp_path):
+    m = Maquette()
+    rampe = m.rampe_profils([
+        ((0.0, 0.0, 0.0), (1.0, 0.0), [(0.0, 0.0), (5.0, 0.30), (5.0, 0.0)], 1.40),
+        ((5.0, 1.50, 0.0), (-1.0, 0.0), [(0.0, 0.30), (5.0, 0.60), (5.0, 0.0), (0.0, 0.0)], 1.40),
+    ])
+    m.pente_declaree(rampe, math.atan(0.06))
+    rapport = m.auditer(tmp_path, NEUF)
+    assert severites(rapport, "Rampe") == ["majeure"]
+    assert "longueur à vérifier" in rapport.non_conformites[0].exigence
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Pente déclarée : unités
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +174,27 @@ def test_pente_declaree_en_degres(tmp_path):
     rampe = m.rampe_dessinee([(1.0, 0.13)])
     m.pente_declaree(rampe, math.degrees(math.atan(0.13)))   # 13 % : au-delà de tout
     assert severites(m.auditer(tmp_path, NEUF), "Rampe") == ["bloquante"]
+
+
+def test_pente_declaree_negative(tmp_path):
+    # Une rampe déclarée « descendante » a la même pente dans l'autre sens.
+    m = Maquette()
+    rampe = m._creer("IfcRamp", "Rampe")
+    m.pente_declaree(rampe, -math.atan(0.13))
+    assert severites(m.auditer(tmp_path, NEUF), "Rampe") == ["bloquante"]
+
+
+@pytest.mark.parametrize("valeur, type_ifc", [
+    ("5 %", "IfcLabel"),            # pente écrite en texte
+    (4.0, "IfcPlaneAngleMeasure"),  # « 4 » sans unité d'angle : 4 radians, absurde
+])
+def test_pente_illisible(tmp_path, valeur, type_ifc):
+    m = Maquette()
+    rampe = m._creer("IfcRamp", "Rampe")
+    m.pente_declaree(rampe, valeur, type_ifc=type_ifc)
+    rapport = m.auditer(tmp_path, NEUF)
+    assert severites(rapport, "Rampe") == []
+    assert any("Pente non contrôlée" in r for r in rapport.remarques)
 
 
 def test_pente_sans_unite_ambigue(tmp_path):

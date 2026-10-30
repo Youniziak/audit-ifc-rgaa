@@ -66,11 +66,11 @@ from audit_ifc_rgaa import (
     _epaisseur_seuil, _ratio_de_pente, _valeur_typee, ajouter_choix_referentiel,
     lire_referentiel,
 )
+from referentiels import Referentiel
 
 # Noms acceptés pour la hauteur d'un ressaut ou d'un seuil de porte mesurée
 _PROPRIETES_RESSAUT = ("ressaut", "hauteurressaut", "hauteurseuil", "thresholdheight",
                        "thresholdthickness")
-from referentiels import Referentiel
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -118,8 +118,14 @@ class Ecart:
 
 def extraire_valeur_declaree(element, propriete: str, scale: float,
                              echelle_angle: float = 1.0) -> Optional[float]:
-    """Extrait la valeur d'une propriété depuis un élément IFC, exprimée en mètres
-    (ou en ratio pour une pente)."""
+    """Extrait la valeur déclarée d'une propriété : en mètres pour une longueur,
+    en ratio pour une pente (0,05 = 5 %).
+
+    - Ressaut d'une porte : épaisseur du seuil (IfcDoorLiningProperties).
+    - Attribut direct (OverallWidth…) : multiplié par l'échelle des longueurs.
+    - Pente : un angle est converti selon l'unité d'angle du projet ; une valeur
+      sans unité au-delà de 1, ou illisible, donne None.
+    """
     # Seuil de porte : épaisseur déclarée dans IfcDoorLiningProperties
     if propriete.lower() in _PROPRIETES_RESSAUT and element.is_a("IfcDoor"):
         epaisseur = _epaisseur_seuil(element)
@@ -358,7 +364,7 @@ def generer_rapport(audit_meta: dict, ecarts: list[Ecart], ref: Referentiel) -> 
         if e.valeur_declaree is not None:
             lignes.append(f"- **Valeur déclarée (BIM)** : {e.valeur_declaree:.3f} {e.unite}")
         else:
-            lignes.append("- **Valeur déclarée (BIM)** : *(non renseignée)*")
+            lignes.append("- **Valeur déclarée (BIM)** : *(non renseignée ou illisible)*")
         lignes.append(f"- **Valeur mesurée (terrain)** : {e.valeur_mesuree:.3f} {e.unite}")
         if e.ecart_absolu is not None:
             signe = "+" if e.ecart_absolu >= 0 else ""
