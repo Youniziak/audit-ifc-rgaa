@@ -1220,7 +1220,7 @@ def _ajouter_reperes(ifc_file, niveaux: list[Niveau], rapport) -> list[str]:
 
 def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
                  plateau: tuple[float, float] = PLATEAU_DEFAUT, echelle: Optional[int] = None,
-                 rapport=None, pdf: bool = False) -> dict:
+                 rapport=None) -> dict:
     """Écrit les STL et la légende ; retourne un résumé (chemins, échelle…)."""
     ifc_file = ifcopenshell.open(chemin_ifc)
     niveaux, remarques = lire_niveaux(ifc_file, d)
@@ -1281,9 +1281,6 @@ def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
               "legende": chemin_md, "niveaux": len(niveaux), "conseil": conseil,
               # Pour les tests : (titre, dessin, fenêtre en mètres) de chaque plaque.
               "pages": [(info[3], info[4], info[6]) for info in pages_info]}
-    if pdf:
-        from pdf_accessible import exporter_pdf
-        resume["pdf"] = exporter_pdf(legende, chemin_md.with_suffix(".pdf"))
     return resume
 
 
@@ -1506,8 +1503,10 @@ def main() -> int:
                         help=f"Hauteur des points braille en mm (défaut {Dimensions.point_hauteur}).")
     parser.add_argument("--eprouvette", action="store_true",
                         help="Écrit seulement la plaque d'essai des hauteurs, sans fichier IFC.")
-    parser.add_argument("--pdf", action="store_true", help="Légende aussi en PDF accessible.")
-    from audit_ifc_rgaa import ajouter_choix_referentiel
+    parser.add_argument("--pdf", action="store_true",
+                        help="Légende aussi en PDF accessible (balisé, variante PDF/UA-1). "
+                             "Demande WeasyPrint ; vérifié par veraPDF s'il est installé.")
+    from audit_ifc_rgaa import ajouter_choix_referentiel, exporter_pdf_et_verifier
     ajouter_choix_referentiel(parser)
     args = parser.parse_args()
 
@@ -1526,6 +1525,8 @@ def main() -> int:
             stl, md = generer_eprouvette(Path(args.sortie or "."), d)
             print(f"Éprouvette : {stl}")
             print(f"Légende : {md}")
+            if args.pdf:
+                return exporter_pdf_et_verifier(md.read_text(encoding="utf-8"), md.with_suffix(".pdf"))
             return 0
         if not args.fichier:
             parser.error("indiquez un fichier IFC, ou --eprouvette")
@@ -1541,7 +1542,7 @@ def main() -> int:
             rapport = auditer(str(chemin), referentiel(args.referentiel))
         dossier = Path(args.sortie) if args.sortie else chemin.with_name(chemin.stem + "_plan_tactile")
         print(f"Plan tactile en cours : {chemin.name}…")
-        resume = generer_plan(str(chemin), dossier, d, args.plateau, args.echelle, rapport, args.pdf)
+        resume = generer_plan(str(chemin), dossier, d, args.plateau, args.echelle, rapport)
     except RuntimeError as erreur:
         sys.stderr.write(f"Erreur : {erreur}\n")
         return 1
@@ -1550,12 +1551,13 @@ def main() -> int:
     for f in resume["stl"]:
         print(f"STL : {f}")
     print(f"Légende : {resume['legende']}")
-    if "pdf" in resume:
-        print(f"Légende PDF : {resume['pdf']}")
     if resume["conseil"]:
         den_c, (cx, cy), faits, total = resume["conseil"]
         print(f"Numéros des locaux : {faits} sur {total} placés. Avec --echelle {den_c}, "
               f"8 sur 10 environ, sur {cx * cy} plaque(s) par niveau.")
+    if args.pdf:
+        md = resume["legende"]
+        return exporter_pdf_et_verifier(md.read_text(encoding="utf-8"), md.with_suffix(".pdf"))
     return 0
 
 

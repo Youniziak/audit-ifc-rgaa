@@ -383,6 +383,20 @@ def test_ligne_de_commande_eprouvette(tmp_path):
     assert (tmp_path / "eprouvette_plan_tactile.stl").exists()
 
 
+def test_ligne_de_commande_pdf_verifie(tmp_path):
+    """--pdf écrit la légende en PDF et annonce la vérification veraPDF, comme l'audit."""
+    pytest.importorskip("weasyprint")
+    pytest.importorskip("markdown")
+    sortie = subprocess.run(
+        [sys.executable, str(RACINE / "plan_tactile.py"), "--eprouvette", "--pdf", "-o", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert (tmp_path / "eprouvette_plan_tactile.pdf").exists(), sortie.stderr
+    assert "Vérification PDF/UA-1" in sortie.stdout
+    if shutil.which("verapdf"):
+        assert sortie.returncode == 0 and "conforme" in sortie.stdout, sortie.stdout
+
+
 def test_ligne_de_commande_sans_fichier(tmp_path):
     sortie = subprocess.run([sys.executable, str(RACINE / "plan_tactile.py")],
                             capture_output=True, text=True)

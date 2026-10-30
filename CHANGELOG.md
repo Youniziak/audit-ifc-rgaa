@@ -11,7 +11,7 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 - **Plan tactile en relief** : `plan_tactile.py` écrit un fichier STL par
   niveau, à imprimer en 3D, et une légende en Markdown (ou en PDF accessible
-  avec `--pdf`). Coupe à 0,50 m du sol : murs en relief de 3 mm, fenêtres et
+  avec `--pdf`, vérifié par veraPDF s'il est installé). Coupe à 0,50 m du sol : murs en relief de 3 mm, fenêtres et
   garde-corps à 1,5 mm, portes ouvertes dans le mur, triangle devant les
   portes vers l'extérieur, escaliers en stries parallèles aux marches,
   rampes en plan incliné plus haut du côté où elles montent, ascenseurs en

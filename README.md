@@ -221,7 +221,7 @@ braille. The key gives each room's name, the symbols and the scale.
 - `--eprouvette`: a test plate (wall heights, door gaps, braille dot heights,
   stair ridges) to print and touch before the first plan; `--hauteur-murs`
   and `--hauteur-points` then adjust the plan.
-- `--pdf`: the key also as an accessible PDF.
+- `--pdf`: the key also as an accessible PDF, checked with veraPDF when it is installed (as for the audit).
 
 The dimensions, their sources (ISO 17049, ISO 19028, BANA) and what still
 has to be checked by touch are in [PLAN_TACTILE.md](PLAN_TACTILE.md)

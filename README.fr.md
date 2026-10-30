@@ -207,7 +207,7 @@ symboles et l'échelle.
 - `--eprouvette` : plaque d'essai (hauteurs de murs, passages, points braille,
   stries) à imprimer et toucher avant le premier plan ; `--hauteur-murs` et
   `--hauteur-points` règlent ensuite le plan.
-- `--pdf` : légende aussi en PDF accessible.
+- `--pdf` : légende aussi en PDF accessible, vérifiée par veraPDF s'il est installé (comme pour l'audit).
 
 Les dimensions, leurs sources (ISO 17049, ISO 19028, BANA) et ce qui reste à
 valider en touchant une plaque sont dans [PLAN_TACTILE.md](PLAN_TACTILE.md).
