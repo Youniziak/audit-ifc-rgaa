@@ -174,7 +174,7 @@ pip install pytest
 python3 -m pytest tests/
 ```
 
-## What is checked (v0.3.1)
+## What is checked (v0.4)
 
 Thresholds for new buildings (arrêté of 20 April 2017), then for existing
 buildings (arrêté of 8 December 2014). Details and sources:
@@ -188,6 +188,7 @@ buildings (arrêté of 8 December 2014). Details and sources:
 | Ramps, slope | 5%; 8% over 2 m; 10% over 0.50 m | 6%; 10% over 2 m; 12% over 0.50 m | Art. 2, applied indoors by Art. 6 |
 | Corridors, width | 1.40 m (1.20 m at a localized narrowing) | 1.20 m (0.90 m at a localized narrowing) | Art. 6, referring to Art. 2 |
 | Sanitary, turning space | Ø 1.50 m, inside or else in front of the door | Ø 1.50 m, inside or else in front of the door | Art. 12 and Annex 2 |
+| Door manoeuvring space | 1.70 m on the push side, 2.20 m on the pull side | same | Art. 10 and Annex 2 |
 
 ## What is not (yet) checked
 
@@ -208,7 +209,7 @@ audit-ifc-rgaa/
 ├── README.md                    This document (English)
 ├── README.fr.md                 French version
 ├── CHANGELOG.md                 Version log
-├── VERSION                      Current version (0.3.1)
+├── VERSION                      Current version (0.4.0)
 ├── REFERENTIEL.md               Applied thresholds, article by article, with sources
 ├── LICENSE                      GPL-3.0 for the code
 ├── requirements.txt             Python dependencies
@@ -260,7 +261,8 @@ Standards used:
 - [x] v0.2 — Horizontal circulation and accessible sanitary facilities
 - [x] v0.3 — BIM ↔ on-site comparison + BCF 2.1 export
 - [x] v0.3.1 — Choice of applicable regulation (new or existing), sourced thresholds, tests
-- [ ] v0.4 — Maneuvering spaces, accessible elevators
+- [x] v0.4 — Door manoeuvring space (Annex 2)
+- [ ] v0.4.x — Accessible elevators (Art. 7.2), thresholds, resting landings
 - [ ] v0.5 — Accessible PDF export (PDF/UA, ISO 14289)
 - [ ] v0.6 — Automatic tactile floor-plan generation (STL)
 - [ ] v1.0 — IndoorGML graphs for accessible indoor guidance
@@ -297,7 +299,7 @@ replace the certified auditor's expertise or the mandatory regulatory checks
   title   = {audit-ifc-rgaa: an open pipeline for built-environment
              accessibility auditing from BIM},
   year    = {2026},
-  version = {0.3.1},
+  version = {0.4.0},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }

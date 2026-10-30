@@ -17,115 +17,11 @@ from pathlib import Path
 
 import pytest
 
-import ifcopenshell
-import ifcopenshell.api.aggregate
-import ifcopenshell.api.context
-import ifcopenshell.api.project
-import ifcopenshell.api.pset
-import ifcopenshell.api.root
-import ifcopenshell.api.unit
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-RACINE = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(RACINE))
-
-from audit_ifc_rgaa import auditer  # noqa: E402
+from maquette import RACINE, Maquette, severites  # noqa: E402
 from comparaison_terrain import evaluer_conformite_reglementaire  # noqa: E402
 from referentiels import EXISTANT, NEUF, referentiel  # noqa: E402
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Construction de petites maquettes IFC
-# ─────────────────────────────────────────────────────────────────────────────
-
-class Maquette:
-    """Une maquette IFC4 minimale, en mètres, avec un seul étage."""
-
-    def __init__(self) -> None:
-        self.model = ifcopenshell.api.project.create_file(version="IFC4")
-        projet = ifcopenshell.api.root.create_entity(
-            self.model, ifc_class="IfcProject", name="Test"
-        )
-        ifcopenshell.api.unit.assign_unit(
-            self.model, length={"is_metric": True, "raw": "METERS"}
-        )
-        modele = ifcopenshell.api.context.add_context(self.model, context_type="Model")
-        self.body = ifcopenshell.api.context.add_context(
-            self.model, context_type="Model", context_identifier="Body",
-            target_view="MODEL_VIEW", parent=modele,
-        )
-        site = self._creer("IfcSite", "Site")
-        batiment = self._creer("IfcBuilding", "Bâtiment")
-        self.etage = self._creer("IfcBuildingStorey", "RDC")
-        ifcopenshell.api.aggregate.assign_object(self.model, products=[site], relating_object=projet)
-        ifcopenshell.api.aggregate.assign_object(self.model, products=[batiment], relating_object=site)
-        ifcopenshell.api.aggregate.assign_object(self.model, products=[self.etage], relating_object=batiment)
-
-    def _creer(self, classe: str, nom: str):
-        return ifcopenshell.api.root.create_entity(self.model, ifc_class=classe, name=nom)
-
-    def _ranger(self, element) -> None:
-        ifcopenshell.api.aggregate.assign_object(
-            self.model, products=[element], relating_object=self.etage
-        )
-
-    def porte(self, largeur: float, hauteur: float = 2.04) -> None:
-        porte = self._creer("IfcDoor", f"Porte {largeur}")
-        porte.OverallWidth = largeur
-        porte.OverallHeight = hauteur
-
-    def escalier(self, hauteur_marche: float, giron: float = 0.30) -> None:
-        esc = self._creer("IfcStair", "Escalier")
-        pset = ifcopenshell.api.pset.add_pset(self.model, product=esc, name="Pset_StairCommon")
-        ifcopenshell.api.pset.edit_pset(
-            self.model, pset=pset,
-            properties={"RiserHeight": hauteur_marche, "TreadLength": giron},
-        )
-
-    def rampe(self, pente: float) -> None:
-        rampe = self._creer("IfcRamp", f"Rampe {pente}")
-        pset = ifcopenshell.api.pset.add_pset(self.model, product=rampe, name="Pset_RampCommon")
-        ifcopenshell.api.pset.edit_pset(self.model, pset=pset, properties={"Slope": pente})
-
-    def couloir(self, largeur: float, longueur: float = 8.0) -> None:
-        espace = self._creer("IfcSpace", f"Couloir {largeur}")
-        espace.ObjectType = "Corridor"
-        profil = self.model.create_entity(
-            "IfcRectangleProfileDef", ProfileType="AREA", XDim=longueur, YDim=largeur
-        )
-        origine = self.model.create_entity(
-            "IfcAxis2Placement3D",
-            Location=self.model.create_entity("IfcCartesianPoint", Coordinates=(0.0, 0.0, 0.0)),
-        )
-        solide = self.model.create_entity(
-            "IfcExtrudedAreaSolid", SweptArea=profil, Position=origine,
-            ExtrudedDirection=self.model.create_entity("IfcDirection", DirectionRatios=(0.0, 0.0, 1.0)),
-            Depth=2.5,
-        )
-        forme = self.model.create_entity(
-            "IfcShapeRepresentation", ContextOfItems=self.body,
-            RepresentationIdentifier="Body", RepresentationType="SweptSolid", Items=[solide],
-        )
-        espace.Representation = self.model.create_entity(
-            "IfcProductDefinitionShape", Representations=[forme]
-        )
-        espace.ObjectPlacement = self.model.create_entity(
-            "IfcLocalPlacement",
-            RelativePlacement=self.model.create_entity(
-                "IfcAxis2Placement3D",
-                Location=self.model.create_entity("IfcCartesianPoint", Coordinates=(0.0, 0.0, 0.0)),
-            ),
-        )
-        self._ranger(espace)
-
-    def auditer(self, tmp_path: Path, ref):
-        chemin = tmp_path / f"maquette_{ref.code}.ifc"
-        self.model.write(str(chemin))
-        return auditer(str(chemin), ref)
-
-
-def severites(rapport, element_type: str) -> list[str]:
-    """Sévérités des non-conformités d'un type ; [] si tout est conforme."""
-    return [nc.severite for nc in rapport.non_conformites if nc.element_type == element_type]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

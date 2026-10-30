@@ -5,6 +5,21 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.4.0] — 2026-10-30
+
+### Ajouté
+
+- **Espace de manœuvre de porte** (article 10 et annexe 2) : 1,70 m du côté
+  où l'on pousse la porte, 2,20 m du côté où on la tire. Le sens d'ouverture
+  vient de l'`OperationType` de la porte ; une porte battante s'ouvre vers
+  l'axe Y positif de son repère (spécification IFC). Chaque côté est comparé
+  à la boîte englobante de l'espace modélisé : contrôle de premier niveau,
+  dont les limites figurent dans chaque rapport.
+- Portes donnant sur un escalier exclues du contrôle, comme le prévoit
+  l'article 10 ; portes sans espace modélisé signalées dans les limites.
+- Tests `tests/test_manoeuvre_portes.py` ; les maquettes de test sont
+  partagées dans `tests/maquette.py`.
+
 ## [0.3.1] — 2026-10-30
 
 ### Corrigé
@@ -108,11 +123,11 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ## À venir
 
-### [0.4.0]
+### [0.4.x]
 
-- Espaces de manœuvre devant les portes (rotation Ø 1,50 m)
-- Vérification des ascenseurs accessibles (article 7-3)
+- Vérification des ascenseurs accessibles (article 7.2)
 - Détection des ressauts au niveau des portes
+- Paliers de repos des plans inclinés (annexe 2)
 
 ### [0.5.0]
 

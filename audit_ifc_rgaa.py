@@ -33,6 +33,7 @@ try:
     import ifcopenshell
     import ifcopenshell.util.unit
     import ifcopenshell.util.element
+    import ifcopenshell.util.placement
     import ifcopenshell.geom
 except ImportError:
     sys.stderr.write(
@@ -89,6 +90,7 @@ class RapportAudit:
     elements_audites: dict[str, int] = field(default_factory=dict)
     non_conformites: list[NonConformite] = field(default_factory=list)
     conformites: list[Conformite] = field(default_factory=list)
+    remarques: list[str] = field(default_factory=list)  # ajoutées aux limites du rapport
 
     @property
     def taux_conformite(self) -> float:
@@ -556,6 +558,198 @@ def auditer_sanitaires(ifc_file, rapport: RapportAudit) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  AUDIT ESPACES DE MANŒUVRE DE PORTE (v0.4)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Annexe 2 : devant chaque porte, un rectangle de la largeur de la
+#  circulation, long de 1,70 m côté où l'on pousse et de 2,20 m côté où l'on
+#  tire. Une porte battante s'ouvre toujours vers l'axe Y positif de son
+#  repère local (spécification IFC de IfcDoor) : c'est le côté où l'on tire.
+#
+#  Contrôle de premier niveau : chaque espace est réduit à sa boîte
+#  englobante. Le rectangle peut s'y placer perpendiculairement à la porte
+#  ou le long de la circulation ; l'écart n'est signalé que si aucune des
+#  deux dimensions de l'espace n'atteint la longueur exigée.
+
+_MOTS_ESCALIER = ("escalier", "stair")
+
+# Sens d'ouverture déduit du type de porte
+_UN_SENS = {
+    "SINGLE_SWING_LEFT", "SINGLE_SWING_RIGHT", "DOUBLE_DOOR_SINGLE_SWING",
+    "SWING_FIXED_LEFT", "SWING_FIXED_RIGHT",
+}
+_DEUX_SENS = {"DOUBLE_SWING_LEFT", "DOUBLE_SWING_RIGHT", "DOUBLE_DOOR_DOUBLE_SWING"}
+
+
+def _type_ouverture(porte) -> str:
+    """OperationType de la porte, lu sur la porte (IFC4) ou sur son type."""
+    valeur = getattr(porte, "OperationType", None)
+    if not valeur or valeur in ("NOTDEFINED", "USERDEFINED"):
+        type_porte = ifcopenshell.util.element.get_type(porte)
+        valeur = getattr(type_porte, "OperationType", None) if type_porte else None
+    return valeur or "NOTDEFINED"
+
+
+def _boites_espaces(ifc_file) -> list[tuple]:
+    """(espace, xmin, ymin, zmin, xmax, ymax, zmax) en mètres, coordonnées monde."""
+    settings = ifcopenshell.geom.settings()
+    settings.set("use-world-coords", True)
+    boites = []
+    for espace in ifc_file.by_type("IfcSpace"):
+        try:
+            verts = ifcopenshell.geom.create_shape(settings, espace).geometry.verts
+        except Exception:
+            continue
+        if not verts:
+            continue
+        xs, ys, zs = verts[0::3], verts[1::3], verts[2::3]
+        boites.append((espace, min(xs), min(ys), min(zs), max(xs), max(ys), max(zs)))
+    return boites
+
+
+def _espace_au_point(boites, x: float, y: float, z: float):
+    """Plus petite boîte d'espace contenant le point, ou None."""
+    candidates = [
+        b for b in boites
+        if b[1] <= x <= b[4] and b[2] <= y <= b[5] and b[3] - 0.1 <= z <= b[6] + 0.1
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda b: (b[4] - b[1]) * (b[5] - b[2]))
+
+
+def _cotes_de_porte(porte, scale: float, boites):
+    """Pour chaque côté de la porte (+1 = côté Y positif, -1 = côté opposé),
+    la boîte de l'espace trouvé de ce côté et la normale de la porte."""
+    matrice = ifcopenshell.util.placement.get_local_placement(porte.ObjectPlacement)
+    origine = [float(v) * scale for v in matrice[:3, 3]]
+    axe_x = [float(v) for v in matrice[:3, 0]]
+    axe_y = [float(v) for v in matrice[:3, 1]]
+    demi = (porte.OverallWidth or 0.0) * scale / 2
+    centre = [origine[i] + axe_x[i] * demi for i in range(3)]
+    z = centre[2] + 1.0
+    cotes = {}
+    for signe in (1, -1):
+        trouve = None
+        for distance in (0.3, 0.6, 0.9):  # franchir l'épaisseur du mur
+            x = centre[0] + signe * axe_y[0] * distance
+            y = centre[1] + signe * axe_y[1] * distance
+            trouve = _espace_au_point(boites, x, y, z)
+            if trouve:
+                break
+        cotes[signe] = trouve
+    return cotes, axe_y
+
+
+def _longueurs_disponibles(boite, axe_y) -> tuple[float, float]:
+    """(profondeur face à la porte, longueur le long de la porte) de l'espace."""
+    dx, dy = boite[4] - boite[1], boite[5] - boite[2]
+    if abs(axe_y[0]) >= abs(axe_y[1]):
+        return dx, dy
+    return dy, dx
+
+
+def auditer_manoeuvre_portes(ifc_file, scale: float, rapport: RapportAudit) -> None:
+    """Vérifie l'espace de manœuvre devant chaque porte (article 10, annexe 2)."""
+    ref = rapport.referentiel
+    article = ref.article("10 et annexe 2")
+    pousser, tirer = ref.manoeuvre_porte_pousser, ref.manoeuvre_porte_tirer
+    boites = _boites_espaces(ifc_file)
+    portes = [p for p in ifc_file.by_type("IfcDoor") if p.ObjectPlacement and p.OverallWidth]
+
+    controlees = sans_espace = escalier = 0
+
+    for porte in portes:
+        nom = _nom_lisible(porte)
+        gid = porte.GlobalId
+        cotes, axe_y = _cotes_de_porte(porte, scale, boites)
+
+        if all(b is None for b in cotes.values()):
+            sans_espace += 1
+            continue
+        if any(b and any(m in _libelle_espace(b[0]) for m in _MOTS_ESCALIER)
+               for b in cotes.values()):
+            # Exception de l'article 10 : porte ouvrant uniquement sur un escalier
+            escalier += 1
+            continue
+
+        controlees += 1
+        ouverture = _type_ouverture(porte)
+        ecarts = 0
+
+        for signe, boite in cotes.items():
+            if boite is None:
+                continue
+            if ouverture in _DEUX_SENS or (ouverture in _UN_SENS and signe < 0):
+                exigee, cote_txt, sens_connu = pousser, "côté où l'on pousse", True
+            elif ouverture in _UN_SENS:
+                exigee, cote_txt, sens_connu = tirer, "côté où l'on tire", True
+            else:
+                exigee, cote_txt, sens_connu = tirer, "sens d'ouverture non renseigné", False
+
+            profondeur, longueur = _longueurs_disponibles(boite, axe_y)
+            disponible = max(profondeur, longueur)
+            if disponible >= exigee:
+                continue
+
+            ecarts += 1
+            nom_espace = _nom_lisible(boite[0])
+            constat = (
+                f"{cote_txt.capitalize()} : espace « {nom_espace} » de "
+                f"{metres(profondeur)} de profondeur sur {metres(longueur)} ; "
+                f"aucune de ces dimensions n'atteint {metres(exigee)}."
+            )
+            if disponible < pousser:
+                severite = "bloquante"
+                exigence = (
+                    f"Rectangle de la largeur de la circulation, long de {metres(pousser)} "
+                    f"côté où l'on pousse et de {metres(tirer)} côté où l'on tire."
+                )
+            elif sens_connu:
+                severite = "majeure"
+                exigence = (
+                    f"Côté où l'on tire, rectangle de la largeur de la circulation "
+                    f"long de {metres(tirer)}."
+                )
+            else:
+                severite = "majeure"
+                exigence = (
+                    f"{metres(pousser)} suffisent si l'on pousse la porte de ce côté, "
+                    f"{metres(tirer)} sont exigés si on la tire : sens d'ouverture à "
+                    "vérifier (OperationType absent du BIM)."
+                )
+            rapport.non_conformites.append(NonConformite(
+                element_type="Espace de manœuvre de porte",
+                nom=nom,
+                global_id=gid,
+                article=article,
+                constat=constat,
+                exigence=exigence,
+                severite=severite,
+            ))
+
+        if ecarts == 0:
+            rapport.conformites.append(Conformite(
+                element_type="Espace de manœuvre de porte",
+                nom=nom,
+                global_id=gid,
+                constat="Espace de manœuvre suffisant de chaque côté modélisé.",
+            ))
+
+    rapport.elements_audites["Espaces de manœuvre de porte"] = controlees
+    if sans_espace:
+        rapport.remarques.append(
+            f"Espace de manœuvre non contrôlé pour {sans_espace} porte(s) : "
+            "aucun espace (IfcSpace) modélisé de part et d'autre"
+        )
+    if escalier:
+        rapport.remarques.append(
+            f"{escalier} porte(s) donnant sur un escalier, exclue(s) du contrôle "
+            "de l'espace de manœuvre (exception de l'article 10)"
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  GÉNÉRATION DU RAPPORT MARKDOWN ACCESSIBLE
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -629,9 +823,15 @@ def generer_rapport_markdown(rapport: RapportAudit) -> str:
         "de local de moins de 100 personnes ; à 100 personnes ou plus, le passage utile "
         f"exigé est de {metres(ref.porte_principale_100_utile_min)}"
     )
+    lignes.append("- Longueur des plans inclinés, dont dépendent les tolérances de pente")
     lignes.append(
-        "- Longueur des plans inclinés, dont dépendent les tolérances de pente\n"
+        "- Espace de manœuvre de porte : contrôle de premier niveau sur la boîte "
+        "englobante de chaque espace ; mobilier, position de la porte le long de la "
+        "circulation et débattement de la porte non pris en compte"
     )
+    for remarque in rapport.remarques:
+        lignes.append(f"- {remarque}")
+    lignes.append("")
 
     # Pied de page
     lignes.append("---\n")
@@ -664,6 +864,7 @@ def auditer(chemin_ifc: str, ref: Referentiel) -> RapportAudit:
     auditer_rampes(ifc_file, scale, rapport)
     auditer_circulations(ifc_file, rapport)
     auditer_sanitaires(ifc_file, rapport)
+    auditer_manoeuvre_portes(ifc_file, scale, rapport)
 
     return rapport
 
