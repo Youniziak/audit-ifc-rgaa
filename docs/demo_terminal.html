@@ -136,7 +136,7 @@
 
 <header>
   <h1>audit-ifc-rgaa — démonstration en direct</h1>
-  <p><!-- DEBUT-ENTETE -->Sortie authentique des scripts v0.4.1, exécutés le 30 octobre 2026 sur un clone neuf du dépôt. Rien n'est simulé : ce sont les vraies commandes et leurs vrais résultats, enregistrés par <code>docs/enregistrer_demo.py</code>.<!-- FIN-ENTETE --></p>
+  <p><!-- DEBUT-ENTETE -->Sortie authentique des scripts v0.4.2, exécutés le 30 octobre 2026 sur un clone neuf du dépôt. Rien n'est simulé : ce sont les vraies commandes et leurs vrais résultats, enregistrés par <code>docs/enregistrer_demo.py</code>.<!-- FIN-ENTETE --></p>
 </header>
 
 <section aria-labelledby="titre-contenu">
@@ -254,7 +254,7 @@ const STEPS = [
   "lines": [
    "# Rapport d'audit d'accessibilité — test_erp_avec_espaces.ifc",
    "",
-   "**Date de l'audit** : 2026-10-30 04:22:41  ",
+   "**Date de l'audit** : 2026-10-30 04:48:59  ",
    "**Fichier source** : `exemples/test_erp_avec_espaces.ifc`  ",
    "**Schéma IFC** : IFC4  ",
    "**Référentiel appliqué** : arrêté du 8 décembre 2014 — accessibilité des ERP existants ([texte sur Légifrance](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000029893131/)).",
@@ -265,6 +265,8 @@ const STEPS = [
    "- Portes auditées : **3**",
    "- Escaliers audités : **0**",
    "- Rampes auditées : **0**",
+   "- Paliers de repos audités : **0**",
+   "- Seuils de porte audités : **0**",
    "- Couloirs audités : **2**",
    "- Sanitaires audités : **2**",
    "- Espaces de manœuvre de porte audités : **3**",
@@ -322,8 +324,10 @@ const STEPS = [
    "- Sonorisation des feux et des ascenseurs",
    "- Qualité d'usage perçue par les personnes en situation de handicap",
    "- Rôle et effectif des portes : l'outil applique le cas d'une porte principale de local de moins de 100 personnes ; à 100 personnes ou plus, le passage utile exigé est de 1,20 m",
-   "- Longueur des plans inclinés, dont dépendent les tolérances de pente",
+   "- Plans inclinés : longueur mesurée en plan sur la géométrie quand elle existe ; paliers de repos en haut et en bas non vérifiés",
+   "- Ressauts : seuls les seuils de porte déclarés dans le BIM sont contrôlés, d'après leur épaisseur ; bord arrondi ou chanfrein, distance de 2,50 m entre ressauts successifs et pas d'âne non vérifiés",
    "- Espace de manœuvre de porte : contrôle de premier niveau sur la boîte englobante de chaque espace ; mobilier, position de la porte le long de la circulation et débattement de la porte non pris en compte",
+   "- Existant : dans les étages non accessibles aux personnes circulant en fauteuil roulant, l'article 6 n'applique pas aux circulations les dispositions de l'article 2 sur le demi-tour et les espaces de manœuvre de porte ; l'article 10, sur lequel l'outil fonde ce contrôle, exige l'espace de manœuvre devant chaque porte sans prévoir cette exception. À apprécier par l'auditeur selon les étages",
    "- Ascenseurs : desserte de tous les étages ouverts au public, commandes, signalisation et position des portes de cabine non vérifiées ; élévateurs : porte ou portillon (0,90 m, soit 0,83 m de passage utile), charge (250 kg/m²), type d'appareil selon la hauteur de course (0,50 m, 1,20 m, 3,20 m), commandes et libre accès non vérifiés",
    "",
    "---",
@@ -366,8 +370,9 @@ const STEPS = [
   "t": "out",
   "delay": 120,
   "lines": [
-   ".....................................................    [100%]",
-   "53 passed in 1.20s"
+   "........................................................ [ 69%]",
+   ".........................                                [100%]",
+   "81 passed in 1.28s"
   ]
  }
 ];

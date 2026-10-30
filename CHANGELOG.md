@@ -5,6 +5,41 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.4.2] — 2026-10-30
+
+### Ajouté
+
+- **Longueur des plans inclinés**, mesurée en plan sur la géométrie (les
+  faces du dessus, regroupées par sens et valeur de pente, donnent le sens de
+  la montée, dans toute orientation). Elle dit si une pente tolérée l'est
+  vraiment (2 m ou 0,50 m au plus). Une rampe qui change de direction n'est
+  pas mesurée : le rapport demande de la décomposer en volées.
+- **Paliers de repos** (article 2 et annexe 2) : une volée de plus de 10 m,
+  dès 4 % de pente (neuf) ou 5 % (existant), est signalée ; les paliers
+  modélisés dans une rampe doivent mesurer 1,20 × 1,40 m au moins. Une rampe
+  décomposée en volées est contrôlée volée par volée.
+- **Seuils de porte** (ressauts, article 2 repris par l'article 6) : épaisseur
+  déclarée (`IfcDoorLiningProperties.ThresholdThickness`) jugée sur 2 cm, et
+  4 cm avec un chanfrein de 33 % au plus.
+- Comparaison terrain : mesure `Ressaut` sur une porte.
+- Tests `tests/test_rampes_seuils.py`, dont les cas trouvés en relecture :
+  dalle inclinée à bouts d'équerre, palier compris dans le même objet, rampe
+  en L ou à demi-tour, pente négative, en texte ou sans unité d'angle.
+
+### Corrigé
+
+- **Lecture de la pente** : l'outil ne lisait que `Pset_RampCommon.Slope`,
+  qui n'est pas une propriété standard IFC. Il lit désormais
+  `Pset_RampFlightCommon.Slope` (standard), puis la géométrie. Un angle est
+  converti selon l'unité d'angle du projet ; une valeur sans unité au-delà
+  de 1 n'est plus devinée (degrés ou pour cent ?).
+- Rampe sans pente lisible : signalée dans les limites du rapport, au lieu
+  d'être déclarée « bloquante ».
+- Existant : les limites du rapport rappellent la question que pose
+  l'article 6 pour les espaces de manœuvre de porte dans les étages non
+  accessibles en fauteuil roulant (l'article 10, base du contrôle, ne prévoit
+  pas cette exception).
+
 ## [0.4.1] — 2026-10-30
 
 ### Ajouté
@@ -157,11 +192,6 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   audit complémentaire sur site
 
 ## À venir
-
-### [0.4.x]
-
-- Détection des ressauts au niveau des portes
-- Paliers de repos des plans inclinés (annexe 2)
 
 ### [0.5.0]
 

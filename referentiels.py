@@ -55,6 +55,14 @@ class Referentiel:
     pente_max: float
     pente_toleree_2m: float       # tolérée sur 2 m au plus
     pente_toleree_50cm: float     # tolérée sur 0,50 m au plus
+    palier_pente_min: float       # à partir de cette pente, un palier tous les 10 m
+    palier_intervalle: float      # 10 m
+    palier_largeur: float         # palier de repos (annexe 2) : 1,20 m
+    palier_longueur: float        # 1,40 m
+
+    # Ressauts — article 2, repris par l'article 6 (seuils de porte compris)
+    ressaut_max: float            # bord arrondi ou chanfreiné : 2 cm
+    ressaut_max_chanfrein: float  # 4 cm si pente du ressaut de 33 % au plus
 
     # Circulations horizontales — article 6, qui renvoie à l'article 2
     circulation_largeur_min: float
@@ -82,6 +90,10 @@ class Referentiel:
     # Remarque propre au texte, ajoutée aux exigences sur les escaliers
     note_escalier: Optional[str] = None
 
+    # Exception propre au texte pour l'espace de manœuvre de porte, rappelée
+    # dans les limites du rapport
+    note_manoeuvre: Optional[str] = None
+
     # Exception propre au texte pour les ascenseurs. Quand elle existe, une
     # cabine trop petite n'est plus « bloquante » mais « majeure, à vérifier ».
     note_ascenseur: Optional[str] = None
@@ -106,6 +118,12 @@ NEUF = Referentiel(
     pente_max=0.05,
     pente_toleree_2m=0.08,
     pente_toleree_50cm=0.10,
+    palier_pente_min=0.04,
+    palier_intervalle=10.0,
+    palier_largeur=1.20,
+    palier_longueur=1.40,
+    ressaut_max=0.02,
+    ressaut_max_chanfrein=0.04,
     circulation_largeur_min=1.40,
     circulation_retrecissement_min=1.20,
     demi_tour_diametre=1.50,
@@ -139,6 +157,12 @@ EXISTANT = Referentiel(
     pente_max=0.06,
     pente_toleree_2m=0.10,
     pente_toleree_50cm=0.12,
+    palier_pente_min=0.05,
+    palier_intervalle=10.0,
+    palier_largeur=1.20,
+    palier_longueur=1.40,
+    ressaut_max=0.02,
+    ressaut_max_chanfrein=0.04,
     circulation_largeur_min=1.20,
     circulation_retrecissement_min=0.90,
     demi_tour_diametre=1.50,
@@ -156,6 +180,14 @@ EXISTANT = Referentiel(
         "l'intérieur d'un établissement situé dans un cadre bâti existant, pour une "
         "hauteur de course de 3,20 m au plus ; hors de ces cas, une dérogation est "
         "nécessaire"
+    ),
+    note_manoeuvre=(
+        "Existant : dans les étages non accessibles aux personnes circulant en "
+        "fauteuil roulant, l'article 6 n'applique pas aux circulations les "
+        "dispositions de l'article 2 sur le demi-tour et les espaces de manœuvre "
+        "de porte ; l'article 10, sur lequel l'outil fonde ce contrôle, exige "
+        "l'espace de manœuvre devant chaque porte sans prévoir cette exception. "
+        "À apprécier par l'auditeur selon les étages"
     ),
     note_ascenseur=(
         "Le texte admet une exception : lorsque des éléments participant à la "

@@ -38,8 +38,8 @@
       "commentaire"
     ],
     "proprietes_supportees": {
-      "IfcDoor": ["OverallWidth", "OverallHeight"],
-      "IfcRamp": ["Pset_RampCommon.Slope"],
+      "IfcDoor": ["OverallWidth", "OverallHeight", "Ressaut (hauteur du seuil, en m)"],
+      "IfcRamp": ["Pset_RampFlightCommon.Slope", "Pset_RampCommon.Slope"],
       "IfcStair": ["Pset_StairCommon.RiserHeight", "Pset_StairCommon.TreadLength"]
     },
     "note": "La premiere mesure illustre une porte conforme dans le BIM (1.00 m) mais plus etroite en realite (0.87 m). Avec --neuf, elle est non conforme si cest une porte principale (0.87 m < 0.90 m) ; avec --existant, elle reste conforme (0.87 m >= 0.80 m). Lecart BIM / terrain est signale dans les deux cas : cest exactement ce que les audits sur plan ratent. La hauteur de porte est comparee au BIM mais pas evaluee reglementairement : aucun des deux arretes nen fixe."

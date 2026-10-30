@@ -62,13 +62,88 @@ n'est pas encore contrôlée.
 - **Existant** : pente de 6 % au plus ; tolérée exceptionnellement jusqu'à
   10 % sur 2 m au plus, et jusqu'à 12 % sur 0,50 m au plus.
 
-Ce que fait l'outil : le BIM donne la pente mais rarement la longueur du plan
-incliné. Une pente au-delà de toute tolérance est bloquante ; une pente
-comprise dans les tolérances est majeure, avec la longueur à vérifier.
+**Palier de repos** (même article) : nécessaire en haut et en bas de chaque
+plan incliné, quelle qu'en soit la longueur, et tous les 10 m dès 4 % de pente
+pour le neuf, dès 5 % pour l'existant. Ses dimensions sont celles de
+l'annexe 2 : un rectangle de 1,20 × 1,40 m au moins, qui « s'insère en
+intégralité dans le cheminement ».
+
+### Ce que fait l'outil (depuis la 0.4.2)
+
+- **Pente.** Il lit d'abord la pente déclarée : `Slope` de
+  `Pset_RampFlightCommon` (propriété standard, un angle), puis
+  `Pset_RampCommon.Slope` (non standard, mais écrite par certains outils). Un
+  angle est converti selon l'unité d'angle du projet (degré ou radian). Une
+  valeur sans unité est lue comme un ratio si elle vaut 1 au plus ; au-delà,
+  on ne peut pas savoir si ce sont des degrés ou des pour cent, et l'outil ne
+  devine pas. À défaut, il mesure la pente sur la géométrie, puis lit en
+  dernier recours `Pset_RampCommon.RequiredSlope` (la pente exigée par le
+  projet). Si la pente déclarée et la géométrie diffèrent de plus d'un demi
+  point, le rapport donne les deux.
+- **Longueur.** Il la mesure en plan sur la géométrie. Il garde les faces du
+  dessus, inclinées de moins de 45° (les abouts et les chanfreins raides sont
+  écartés), et les regroupe par sens de montée et par valeur de pente. Le
+  groupe le plus étendu donne la pente, le sens de la montée, et la longueur :
+  l'étendue du groupe dans ce sens. Cela vaut quelle que soit l'orientation
+  de la rampe, pour un coin plein comme pour une dalle inclinée. Si des
+  paliers sont compris dans le même objet, la longueur retenue est celle de la
+  plus longue partie en pente continue.
+- **Rampe qui change de direction** (en L, à demi-tour, courbe) : la
+  géométrie ne donne pas une pente unique, l'outil ne mesure rien et le
+  rapport demande de décomposer la rampe en volées (`IfcRampFlight`) ou de
+  vérifier sur plan. Une pente déclarée reste utilisée, longueur à vérifier.
+- Pente au-delà de toute tolérance : bloquante. Pente tolérée : conforme si
+  la longueur respecte la tolérance (2 m ou 0,50 m), majeure sinon ; majeure,
+  longueur à vérifier, si la géométrie manque.
+- **Paliers intermédiaires.** Une rampe décomposée en volées
+  (`IfcRampFlight`) est contrôlée volée par volée. Une volée (ou une rampe
+  d'un seul tenant) plus longue que 10 m, à partir de 4 % (neuf) ou 5 %
+  (existant), est majeure. Les paliers modélisés dans la rampe (`IfcSlab` de
+  type `LANDING`) doivent mesurer 1,20 × 1,40 m au moins : majeure sinon.
+- Pente introuvable (ni déclarée, ni mesurable) : le plan incliné n'est pas
+  contrôlé, et le rapport le dit. Jusqu'à la 0.4.1, l'outil le déclarait
+  « bloquant », ce qui confondait une donnée manquante avec un obstacle ; il
+  ne lisait d'ailleurs qu'une propriété non standard.
+
+Non vérifié : les paliers en haut et en bas des plans inclinés (ils font
+partie du sol des pièces ou des circulations), la longueur mesurée le long de
+la pente plutôt qu'en plan (moins de 1 % d'écart sous 12 %), des volées qui se
+suivent sans palier entre elles (chacune est jugée seule).
 
 Les pentes relèvent de l'article 2 (cheminements extérieurs), que l'article 6
 applique aux circulations intérieures. L'article 7.2 (7-2 pour le neuf) porte
 sur les ascenseurs : les versions 0.1 à 0.3 le citaient à tort pour les rampes.
+
+## Ressauts et seuils de porte — article 2, repris par l'article 6
+
+Les deux textes fixent les mêmes hauteurs : « Lorsqu'il ne peut être évité, un faible
+écart de niveau peut être traité par un ressaut à bord arrondi ou muni d'un
+chanfrein et dont la hauteur est inférieure ou égale à 2 cm. Cette hauteur
+maximale peut toutefois être portée à 4 cm si le ressaut comporte sur toute sa
+hauteur une pente ne dépassant pas 33 %. » Deux ressauts successifs sont
+distants de 2,50 m au moins, les « pas d'âne » sont interdits, et un plan
+incliné ne présente pas de ressaut en haut ni en bas, sauf les seuils et pas
+de porte. Un seuil de porte est donc un ressaut, soumis à ces hauteurs. À
+l'entrée du bâtiment, l'article 4 pose la même règle (« L'accès est horizontal
+et sans ressaut », mêmes 2 et 4 cm). L'article 10, sur les portes, ne parle
+pas des seuils.
+
+Ce que fait l'outil (depuis la 0.4.2) :
+
+- Il lit l'épaisseur du seuil déclarée dans le BIM
+  (`IfcDoorLiningProperties.ThresholdThickness`, sur la porte ou sur son type).
+  C'est l'épaisseur de la pièce, pas sa saillie au-dessus du sol fini : un
+  seuil en partie encastré dépasse moins. L'outil la traite comme un ressaut
+  probable.
+- 2 cm au plus : conforme, bord arrondi ou chanfreiné à vérifier sur place.
+  Plus de 2 cm et jusqu'à 4 cm : mineure, admis seulement avec un chanfrein
+  de 33 % au plus. Plus de 4 cm : majeure, saillie réelle à mesurer.
+- Comparaison terrain : une mesure `Ressaut` (ou `ThresholdHeight`) sur une
+  porte est la hauteur réelle du ressaut ; elle est comparée à l'épaisseur
+  déclarée et jugée sur les mêmes seuils (conforme, à vérifier, non conforme).
+
+Non vérifié : les ressauts hors des portes, la distance entre ressauts, les
+pas d'âne, la forme du bord.
 
 ## Circulations horizontales — article 6, qui renvoie à l'article 2
 
@@ -121,6 +196,19 @@ Ce que fait l'outil (depuis la 0.4.0) :
 C'est un contrôle de premier niveau : il ne tient compte ni du mobilier, ni de
 la position de la porte le long de la circulation, ni du débattement de la
 porte, et il ne sait pas si un sanitaire est adapté.
+
+**Existant** : l'article 6 de l'arrêté de 2014 applique aux circulations
+intérieures les exigences de l'article 2, « à l'exception des dispositions
+concernant l'aménagement d'espaces de manœuvre avec possibilité de demi-tour
+ainsi que les espaces de manœuvre de porte pour une personne circulant en
+fauteuil roulant dans les étages non accessibles aux personnes circulant en
+fauteuil roulant ». Cette exception porte sur ce que l'article 6 reprend de
+l'article 2. L'outil fonde son contrôle sur l'article 10, qui exige l'espace
+de manœuvre « devant chaque porte » et ne prévoit d'exception que pour les
+portes ouvrant uniquement sur un escalier et celles des sanitaires, douches et
+cabines non adaptés. Les constats restent donc valables ; le rapport rappelle
+seulement que la question se pose pour les étages non accessibles, à
+l'appréciation de l'auditeur.
 
 ## Ascenseurs et élévateurs — article 7-2 (neuf) ou 7.2 (existant), annexe 1
 
@@ -223,16 +311,19 @@ ou portillon (0,90 m de largeur nominale, soit 0,83 m de passage utile), charge
 
 - **Espace de manœuvre avec possibilité de demi-tour** : cercle de 1,50 m de
   diamètre (contrôlé dans les sanitaires).
-- **Palier de repos** : rectangle de 1,20 × 1,40 m au moins (pas encore
-  contrôlé).
+- **Palier de repos** : rectangle de 1,20 × 1,40 m au moins (contrôlé pour
+  les paliers modélisés dans une rampe, depuis la 0.4.2).
 
 ## Sources
 
 - [Arrêté du 8 décembre 2014, texte consolidé](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000029893131/)
+- [Arrêté du 8 décembre 2014, article 6 (circulations intérieures horizontales)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000038437150)
 - [Arrêté du 8 décembre 2014, article 7 (escaliers et ascenseurs)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034797421)
 - [Arrêté du 8 décembre 2014, annexe 1 (gabarit du fauteuil roulant)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000029895701)
 - [Arrêté du 8 décembre 2014, annexe 2 (espaces de manœuvre)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034797441)
 - [Arrêté du 20 avril 2017, texte consolidé](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000034485459/)
+- [Arrêté du 20 avril 2017, article 6 (circulations intérieures horizontales)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034485952)
+- [Arrêté du 20 avril 2017, annexe 2 (palier de repos)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034485905)
 - [Arrêté du 20 avril 2017, article 7-1 (escaliers)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034485956)
 - [Arrêté du 20 avril 2017, article 7-2 (ascenseurs et élévateurs)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000038437153)
 - [NF EN 81-70:2003, tableau 1 (types de cabine), reproduit par l'AFEM](https://www.afem.com/wp-content/uploads/2014/04/norme-mc.pdf) — source du repère de 1,00 × 1,25 m

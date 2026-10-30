@@ -5,11 +5,14 @@ Petites maquettes IFC4 construites en mémoire pour les tests.
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
 import ifcopenshell
 import ifcopenshell.api.aggregate
+import ifcopenshell.api.unit
+import ifcopenshell.guid
 import ifcopenshell.api.context
 import ifcopenshell.api.project
 import ifcopenshell.api.pset
@@ -119,6 +122,188 @@ class Maquette:
         porte.OverallHeight = 2.04
         porte.OperationType = ouverture
         porte.ObjectPlacement = self._placement(x, y, direction)
+
+    # ── Plans inclinés dessinés ────────────────────────────────────────────
+
+    def _coin(self, longueur: float, hauteur: float, largeur: float):
+        """Forme en coin : monte de 0 à `hauteur` sur `longueur` selon X,
+        large de `largeur` selon -Y."""
+        points = [self.model.create_entity("IfcCartesianPoint", Coordinates=c)
+                  for c in ((0.0, 0.0), (longueur, 0.0), (longueur, hauteur), (0.0, 0.0))]
+        profil = self.model.create_entity(
+            "IfcArbitraryClosedProfileDef", ProfileType="AREA",
+            OuterCurve=self.model.create_entity("IfcPolyline", Points=points),
+        )
+        return self._extrusion(profil, largeur, axe=(0.0, -1.0, 0.0))
+
+    def _boite(self, dx: float, dy: float, dz: float):
+        """Boîte de dx × dy, de dz d'épaisseur, posée sur l'origine (coin à l'origine)."""
+        profil = self.model.create_entity(
+            "IfcRectangleProfileDef", ProfileType="AREA", XDim=dx, YDim=dy,
+            Position=self.model.create_entity(
+                "IfcAxis2Placement2D",
+                Location=self.model.create_entity("IfcCartesianPoint", Coordinates=(dx / 2, -dy / 2)),
+            ),
+        )
+        return self._extrusion(profil, dz, axe=(0.0, 0.0, 1.0))
+
+    def _extrusion(self, profil, profondeur: float, axe):
+        position = self.model.create_entity(
+            "IfcAxis2Placement3D",
+            Location=self.model.create_entity("IfcCartesianPoint", Coordinates=(0.0, 0.0, 0.0)),
+            Axis=self.model.create_entity("IfcDirection", DirectionRatios=axe),
+            RefDirection=self.model.create_entity("IfcDirection", DirectionRatios=(1.0, 0.0, 0.0)),
+        )
+        solide = self.model.create_entity(
+            "IfcExtrudedAreaSolid", SweptArea=profil, Position=position,
+            ExtrudedDirection=self.model.create_entity("IfcDirection", DirectionRatios=(0.0, 0.0, 1.0)),
+            Depth=profondeur,
+        )
+        forme = self.model.create_entity(
+            "IfcShapeRepresentation", ContextOfItems=self.body,
+            RepresentationIdentifier="Body", RepresentationType="SweptSolid", Items=[solide],
+        )
+        return self.model.create_entity("IfcProductDefinitionShape", Representations=[forme])
+
+    def rampe_dessinee(self, volees, palier=(1.40, 1.40), largeur: float = 1.40,
+                       angle_deg: float = 0.0, nom: str = "Rampe"):
+        """Rampe dont la géométrie est modélisée, sans pente déclarée.
+
+        `volees` : liste de (longueur en plan, hauteur). Une seule volée donne
+        une IfcRamp d'un seul tenant ; plusieurs donnent une IfcRamp décomposée
+        en IfcRampFlight séparées par des paliers (IfcSlab LANDING) de
+        `palier` = (longueur, largeur). La rampe monte dans la direction
+        `angle_deg` (0 = vers l'est). Retourne la rampe."""
+        rampe = self._creer("IfcRamp", nom)
+        c, s = math.cos(math.radians(angle_deg)), math.sin(math.radians(angle_deg))
+        direction = (c, s, 0.0)
+
+        def placer(element, avance: float, altitude: float):
+            element.ObjectPlacement = self.model.create_entity(
+                "IfcLocalPlacement",
+                RelativePlacement=self.model.create_entity(
+                    "IfcAxis2Placement3D",
+                    Location=self.model.create_entity(
+                        "IfcCartesianPoint", Coordinates=(avance * c, avance * s, altitude)),
+                    Axis=self.model.create_entity("IfcDirection", DirectionRatios=(0.0, 0.0, 1.0)),
+                    RefDirection=self.model.create_entity("IfcDirection", DirectionRatios=direction),
+                ),
+            )
+
+        if len(volees) == 1:
+            longueur, hauteur = volees[0]
+            rampe.Representation = self._coin(longueur, hauteur, largeur)
+            placer(rampe, 0.0, 0.0)
+            self._ranger_contenu(rampe)
+            return rampe
+
+        placer(rampe, 0.0, 0.0)
+        self._ranger_contenu(rampe)
+        parties, avance, altitude = [], 0.0, 0.0
+        for i, (longueur, hauteur) in enumerate(volees):
+            if i:
+                dalle = ifcopenshell.api.root.create_entity(
+                    self.model, ifc_class="IfcSlab", name=f"Palier {i}", predefined_type="LANDING")
+                dalle.Representation = self._boite(palier[0], palier[1], 0.02)
+                placer(dalle, avance, altitude - 0.02)
+                parties.append(dalle)
+                avance += palier[0]
+            volee = self._creer("IfcRampFlight", f"Volée {i + 1}")
+            volee.Representation = self._coin(longueur, hauteur, largeur)
+            placer(volee, avance, altitude)
+            parties.append(volee)
+            avance += longueur
+            altitude += hauteur
+        ifcopenshell.api.aggregate.assign_object(self.model, products=parties, relating_object=rampe)
+        return rampe
+
+    def rampe_profils(self, pieces, nom: str = "Rampe d'un seul tenant"):
+        """Rampe d'un seul objet, faite de plusieurs morceaux extrudés.
+
+        Chaque morceau : (origine (x, y, z), sens de la montée (dx, dy),
+        profil [(abscisse, altitude), …] dans ce sens, largeur). Le profil est
+        extrudé sur la largeur, à droite du sens de la montée."""
+        items = []
+        for origine, (dx, dy), points, largeur in pieces:
+            pts = [self.model.create_entity("IfcCartesianPoint", Coordinates=c)
+                   for c in list(points) + [points[0]]]
+            profil = self.model.create_entity(
+                "IfcArbitraryClosedProfileDef", ProfileType="AREA",
+                OuterCurve=self.model.create_entity("IfcPolyline", Points=pts),
+            )
+            items.append(self.model.create_entity(
+                "IfcExtrudedAreaSolid", SweptArea=profil,
+                Position=self.model.create_entity(
+                    "IfcAxis2Placement3D",
+                    Location=self.model.create_entity("IfcCartesianPoint", Coordinates=origine),
+                    Axis=self.model.create_entity("IfcDirection", DirectionRatios=(dy, -dx, 0.0)),
+                    RefDirection=self.model.create_entity("IfcDirection", DirectionRatios=(dx, dy, 0.0)),
+                ),
+                ExtrudedDirection=self.model.create_entity("IfcDirection", DirectionRatios=(0.0, 0.0, 1.0)),
+                Depth=largeur,
+            ))
+        rampe = self._creer("IfcRamp", nom)
+        forme = self.model.create_entity(
+            "IfcShapeRepresentation", ContextOfItems=self.body,
+            RepresentationIdentifier="Body", RepresentationType="SweptSolid", Items=items,
+        )
+        rampe.Representation = self.model.create_entity(
+            "IfcProductDefinitionShape", Representations=[forme])
+        rampe.ObjectPlacement = self._placement(0.0, 0.0)
+        self._ranger_contenu(rampe)
+        return rampe
+
+    def pente_declaree(self, element, valeur, type_ifc: str = "IfcPlaneAngleMeasure",
+                       pset: str = "Pset_RampFlightCommon", propriete: str = "Slope") -> None:
+        """Ajoute une pente déclarée, avec son type IFC exact."""
+        prop = self.model.create_entity(
+            "IfcPropertySingleValue", Name=propriete,
+            NominalValue=self.model.create_entity(type_ifc, valeur),
+        )
+        ensemble = self.model.create_entity(
+            "IfcPropertySet", GlobalId=ifcopenshell.guid.new(), Name=pset, HasProperties=[prop])
+        self.model.create_entity(
+            "IfcRelDefinesByProperties", GlobalId=ifcopenshell.guid.new(),
+            RelatedObjects=[element], RelatingPropertyDefinition=ensemble,
+        )
+
+    def angles_en_degres(self) -> None:
+        """L'unité d'angle du projet devient le degré."""
+        degre = ifcopenshell.api.unit.add_conversion_based_unit(self.model, name="degree")
+        ifcopenshell.api.unit.assign_unit(self.model, units=[degre])
+
+    def _ranger_contenu(self, element) -> None:
+        ifcopenshell.api.spatial.assign_container(
+            self.model, products=[element], relating_structure=self.etage
+        )
+
+    # ── Seuils de porte ─────────────────────────────────────────────────────
+
+    def porte_avec_seuil(self, epaisseur: float, sur_le_type: bool = False) -> None:
+        """Porte de 0,90 m dont le seuil a l'épaisseur donnée
+        (IfcDoorLiningProperties.ThresholdThickness)."""
+        porte = self._creer("IfcDoor", f"Porte seuil {epaisseur}")
+        porte.OverallWidth = 0.90
+        porte.OverallHeight = 2.04
+        doublure = self.model.create_entity(
+            "IfcDoorLiningProperties", GlobalId=ifcopenshell.guid.new(),
+            Name="Huisserie", ThresholdThickness=epaisseur,
+        )
+        if sur_le_type:
+            type_porte = ifcopenshell.api.root.create_entity(
+                self.model, ifc_class="IfcDoorType", name="Type de porte",
+                predefined_type="DOOR",
+            )
+            type_porte.OperationType = "SINGLE_SWING_LEFT"
+            type_porte.HasPropertySets = [doublure]
+            ifcopenshell.api.type.assign_type(
+                self.model, related_objects=[porte], relating_type=type_porte
+            )
+        else:
+            self.model.create_entity(
+                "IfcRelDefinesByProperties", GlobalId=ifcopenshell.guid.new(),
+                RelatedObjects=[porte], RelatingPropertyDefinition=doublure,
+            )
 
     def niveau_occupe(self, nom: str) -> None:
         """Ajoute un étage contenant une pièce, et en fait l'étage courant."""

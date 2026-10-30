@@ -158,7 +158,7 @@ pip install pytest
 python3 -m pytest tests/
 ```
 
-## Ce qui est vérifié (v0.4.1)
+## Ce qui est vérifié (v0.4.2)
 
 Seuils « neuf » (arrêté du 20 avril 2017) puis « existant » (arrêté du
 8 décembre 2014). Le détail et les sources sont dans
@@ -169,7 +169,9 @@ Seuils « neuf » (arrêté du 20 avril 2017) puis « existant » (arrêté du
 | Portes, largeur | 0,90 m (0,80 m pour sanitaires et cabines non adaptés) | 0,80 m | Art. 10 |
 | Escaliers, giron | 0,28 m au moins | 0,28 m au moins | Art. 7-1 (neuf), 7.1 (existant) |
 | Escaliers, hauteur de marche | 0,16 m au plus | 0,17 m au plus | Art. 7-1 (neuf), 7.1 (existant) |
-| Rampes, pente | 5 % ; 8 % sur 2 m ; 10 % sur 0,50 m | 6 % ; 10 % sur 2 m ; 12 % sur 0,50 m | Art. 2, repris par l'art. 6 |
+| Rampes, pente et longueur | 5 % ; 8 % sur 2 m ; 10 % sur 0,50 m | 6 % ; 10 % sur 2 m ; 12 % sur 0,50 m | Art. 2, repris par l'art. 6 |
+| Rampes, palier de repos | tous les 10 m dès 4 % ; 1,20 × 1,40 m | tous les 10 m dès 5 % ; 1,20 × 1,40 m | Art. 2 et annexe 2 |
+| Seuils de porte (ressauts) | 2 cm ; 4 cm avec chanfrein de 33 % au plus | identique | Art. 2, repris par l'art. 6 |
 | Couloirs, largeur | 1,40 m (1,20 m en rétrécissement ponctuel) | 1,20 m (0,90 m en rétrécissement ponctuel) | Art. 6, renvoi à l'art. 2 |
 | Sanitaires, demi-tour | Ø 1,50 m, dedans ou à défaut devant la porte | Ø 1,50 m, dedans ou à défaut devant la porte | Art. 12 et annexe 2 |
 | Espace de manœuvre de porte | 1,70 m côté où l'on pousse, 2,20 m côté où l'on tire | identique | Art. 10 et annexe 2 |
@@ -196,7 +198,7 @@ automatisé* de chaque rapport généré.
 audit-ifc-rgaa/
 ├── README.md                    Ce document
 ├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.4.1)
+├── VERSION                      Version courante (0.4.2)
 ├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
 ├── LICENSE                      GPL-3.0 pour le code
 ├── requirements.txt             Dépendances Python
@@ -251,7 +253,7 @@ Standards utilisés :
 - [x] **v0.3.1** — Choix du texte applicable (neuf ou existant), seuils sourcés, tests
 - [x] **v0.4** — Espace de manœuvre devant les portes (annexe 2)
 - [x] **v0.4.1** — Ascenseurs et élévateurs (art. 7.2 ou 7-2)
-- [ ] **v0.4.x** — Ressauts, palier de repos
+- [x] **v0.4.2** — Rampes (longueur, paliers de repos) et seuils de porte
 - [ ] **v0.5** — Export PDF accessible (PDF/UA, ISO 14289)
 - [ ] **v0.6** — Génération automatique de plans tactiles (STL)
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
@@ -289,7 +291,7 @@ public d'accessibilité, attestations de conformité signées).
   title   = {audit-ifc-rgaa : pipeline ouvert d'audit d'accessibilité
              du bâti depuis le BIM},
   year    = {2026},
-  version = {0.4.1},
+  version = {0.4.2},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }
