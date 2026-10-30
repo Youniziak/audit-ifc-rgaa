@@ -289,6 +289,7 @@ audit-ifc-rgaa/
 ├── VERSION                      Current version (0.6.1)
 ├── REFERENTIEL.md               Applied thresholds, article by article, with sources
 ├── PLAN_TACTILE.md              Tactile plan: dimensions, sources, choices to validate
+├── PLANS_EXISTANTS.md           Planned method for reading a plan without a model (v0.8)
 ├── LICENSE                      GPL-3.0 for the code
 ├── requirements.txt             Python dependencies
 ├── requirements-pdf.txt         PDF export dependencies (--pdf)
@@ -350,7 +351,7 @@ Standards used:
 - [x] v0.5 — Accessible PDF export (tagged PDF/UA-1, checked with veraPDF)
 - [x] v0.6 — Raised tactile floor plans for 3D printing (STL), with a key and the audit's findings
 - [ ] v0.7 — Visual floor plans from the model (high contrast, zoomable, same numbers as the tactile plan)
-- [ ] v0.8 — Reading existing plans: vector PDF and DXF first, then scanned plans and photos, redrawn as an IFC model after rescaling on a known dimension; measurements to be confirmed on site (field comparison)
+- [ ] v0.8 — Reading existing plans: vector PDF and DXF first, then scanned plans and photos, redrawn as an IFC model after rescaling on a known dimension; measurements to be confirmed on site (field comparison). Method: [PLANS_EXISTANTS.md](PLANS_EXISTANTS.md) (French)
 - [ ] v1.0 — IndoorGML graphs for accessible indoor guidance
 - [ ] v1.x — First published hardware prototype (tactile ruler)
 
