@@ -1,6 +1,6 @@
 # Plan tactile — ce qui est dessiné, dimensions et sources
 
-Ce document accompagne `plan_tactile.py` (v0.6.0). Il dit ce que l'outil
+Ce document accompagne `plan_tactile.py` (v0.6.1). Il dit ce que l'outil
 dessine, avec quelles dimensions, d'où vient chaque chiffre, et ce qui reste
 à valider en touchant une plaque imprimée.
 
@@ -40,12 +40,17 @@ allèges de fenêtre sont en général pleines, et les portes ouvertes.
 | Escalier | stries parallèles aux marches, tous les 3 mm (une strie n'est pas une marche), au niveau de départ et à celui d'arrivée | 1 mm |
 | Rampe | relief qui suit l'altitude de la rampe : bas en bas, haut en haut ; une rampe qui tourne garde chaque partie dans son sens | de 0,5 à 2 mm |
 | Ascenseur, élévateur | plateau | 1,5 mm |
-| Local | numéro en braille au sol du local | 0,6 mm |
+| Local | numéro en chiffres en relief, et en braille dessous (ou à gauche dans un local étroit ; en braille seul s'il n'y a pas la place pour les chiffres, et la légende le dit), au sol du local | chiffres 0,8 mm, braille 0,6 mm |
 | Écart de l'audit (option) | dôme de 6 mm | 2,5 mm |
-| Titre (« plan 1 ») | braille, bandeau du haut, à gauche (à droite si un triangle d'entrée a besoin de la place) | 0,6 mm |
+| Titre (« plan 1 ») | braille puis lettres ordinaires (« PLAN 1 »), bandeau du haut, à gauche (à droite si un triangle d'entrée a besoin de la place) | braille 0,6 mm, lettres 0,8 mm |
 | Nord (si la maquette le donne) | flèche, à droite du bandeau du haut | 1,5 mm |
 | Échelle | barre d'un nombre rond de mètres, bandeau du bas (à gauche, ou à droite comme le titre), longueur en braille | 1,5 mm |
 | Sens de lecture | coin coupé en haut à gauche | — |
+
+Tout ce qui est écrit sur la plaque l'est deux fois : en braille, pour le
+toucher, et en lettres ou chiffres ordinaires en relief, pour qui voit ou voit
+mal. La légende donne aussi les deux (le braille en caractères Unicode, à côté
+du texte).
 
 Socle de 2 mm. Plaque de 200 × 200 mm au plus par défaut (`--plateau`). L'échelle
 est la plus grande de 1/50, 1/100, 1/200, 1/250, 1/500, 1/1000, 1/2000 où le
@@ -74,6 +79,10 @@ et la même taille de plaque, pour qu'on puisse les comparer.
 | Rampe en plan incliné | 0,5 → 2 mm | même étude : tous les participants à l'aise avec le codage de la rampe essayé seul, 13 sur 15 d'accord sur la carte complète, pour un objectif de 14 ou 15 | **choix à valider** |
 | Passage de porte | largeur réelle à l'échelle (0,90 m : 9 mm au 1/100, 4,5 mm au 1/200) | l'étude ne donne pas de largeur de passage (ses 3 mm sont l'écart dans le symbole de porte en anneau, qui montre le sens d'ouverture) ; elle demande 2 cm au moins entre les deux murs d'un couloir | dépend de l'échelle ; un couloir de 1,20 m ne fait 2 cm qu'au 1/60 |
 | Coin coupé | en haut à gauche | aucune source trouvée qui fixe ce repère | **choix** |
+| Lettres ordinaires | majuscules sans empattement, police bâton ; braille sous le texte | ADA 2010, 703.2.2, 703.2.3 et 703.3.2 (panneaux) | norme pour la forme |
+| Relief des lettres | 0,8 mm | ADA 2010, 703.2.1 : 0,8 mm au moins | norme |
+| Hauteur des lettres | 5 mm (titre, numéros, échelle) | à lire avec les yeux, de près ou à la loupe : des lettres à lire au doigt feraient 16 mm au moins (ADA 703.2.5), trop grand pour un plan ; l'éprouvette essaie 4, 6 et 8 mm | **choix à valider** |
+| Trait des lettres | 0,9 mm | deux passes d'une buse de 0,4 mm ; ADA 703.2.6 demande 15 % de la hauteur au plus pour des lettres à toucher (0,75 mm à 5 mm), pas imprimable aussi fin | choix d'impression |
 | Hauteur de coupe | 0,50 m | sous la plupart des allèges de fenêtre | choix |
 
 Les **choix à valider** se règlent avec l'éprouvette (voir plus bas), puis
@@ -144,15 +153,17 @@ Mesuré sur l'éprouvette : les passages annoncés de 3, 5 et 8 mm font 2,92,
 
 ## L'éprouvette
 
-`python3 plan_tactile.py --eprouvette` écrit une plaque de 150 × 120 mm avec :
+`python3 plan_tactile.py --eprouvette` écrit une plaque de 150 × 140 mm avec :
 
 1. murs de 2, 3, 4 et 5 mm ;
 2. passages de porte de 3, 5 et 8 mm ;
 3. le mot « mur » en braille, points de 0,5, 0,6, 0,7 et 0,8 mm ;
 4. stries d'escalier tous les 2, 3 et 4 mm ;
-5. stries d'escalier de 1, 2 et 3 mm de haut.
+5. stries d'escalier de 1, 2 et 3 mm de haut ;
+6. lettres ordinaires « AB8 » de 4, 6 et 8 mm de haut.
 
-Chaque essai porte son numéro en braille, et la légende les décrit. Il faut
+Chaque essai porte son numéro en chiffres en relief, avec le même numéro en
+braille dessous, et la légende les décrit (avec le braille de chaque numéro). Il faut
 l'imprimer, la faire toucher, et garder pour chaque rangée le numéro qui se lit
 le mieux.
 
@@ -177,7 +188,7 @@ le mieux.
 
   | Plaque | Temps estimé | Filament |
   |---|---|---|
-  | Éprouvette (150 × 120 mm, cinq rangées) | 4 h 17 | 9,5 m, environ 28 g |
+  | Éprouvette (150 × 140 mm, six rangées, v0.6.1) | 5 h 06 | 11,2 m, environ 33 g |
   | Duplex, niveau 1 | 3 h 19 | 7,6 m, environ 23 g |
   | BuildingBIMModel, niveau 1 | 5 h 46 | 12,6 m, environ 38 g |
 
@@ -241,9 +252,12 @@ pas écrit le code), tous reproduits puis corrigés, chacun avec son test :
   1/500). La légende propose une échelle (1/100) et le nombre de plaques
   qu'elle demande (16 par niveau). C'est une vraie contrainte des plans
   tactiles, pas seulement de l'outil.
-- **Pas de gros caractères en relief** pour les personnes malvoyantes :
-  braille seulement, et la légende en texte.
-- **Une seule matière** : pas de couleur ni de contraste visuel.
+- **Lettres petites** : les lettres ordinaires (5 mm) sont faites pour être
+  vues, pas touchées. Les noms des locaux ne sont pas sur la plaque, ni en
+  braille ni en lettres : seulement leur numéro, et le nom dans la légende.
+- **Une seule matière** : le relief se voit par son ombre. Pour un vrai
+  contraste, changer de couleur de filament juste au-dessus du socle
+  (à 2,2 mm), par exemple socle foncé et reliefs clairs ; pas encore essayé.
 - Un local coupé entre deux parties a un numéro dans chacune.
 - **Termux** : pas essayé. manifold3d n'a pas de paquet pour Android ; il
   faudrait le compiler.

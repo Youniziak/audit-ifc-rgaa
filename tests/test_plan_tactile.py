@@ -361,7 +361,7 @@ def test_eprouvette(tmp_path):
     assert stl_ferme(stl)
     texte = md.read_text(encoding="utf-8")
     for rangee in ("hauteur des murs", "passage de porte", "points braille", "écart des stries",
-                   "hauteur des stries"):
+                   "hauteur des stries", "taille des lettres"):
         assert rangee in texte
 
 
@@ -647,7 +647,7 @@ def test_eprouvette_passages_proches_de_l_annonce(tmp_path):
     solide = manifold3d.Manifold(manifold3d.Mesh(vert_properties=sommets.astype(np.float32),
                                                  tri_verts=ids.reshape(-1, 3).astype(np.uint32)))
     murs = unary_union([Polygon(c) for c in solide.slice(D.socle + 1.0).to_polygons()]).buffer(0)
-    ligne = LineString([(0, 76.0), (150, 76.0)]).intersection(murs)
+    ligne = LineString([(0, 96.0), (150, 96.0)]).intersection(murs)
     morceaux = sorted((seg.bounds[0], seg.bounds[2]) for seg in getattr(ligne, "geoms", [ligne]))
     ecarts = [round(b[0] - a[1], 2) for a, b in zip(morceaux, morceaux[1:])]
     passages = [e for e in ecarts if e < 10]
@@ -657,3 +657,61 @@ def test_eprouvette_passages_proches_de_l_annonce(tmp_path):
 def test_texte_md_neutralise_la_structure():
     from audit_ifc_rgaa import texte_md
     assert texte_md("Bureau\r\n# Titre\t[a](b) `c` *d*") == "Bureau # Titre \\[a\\](b) \\`c\\` \\*d\\*"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Lettres ordinaires en relief, à côté du braille
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_lettres_dans_la_boite_annoncee():
+    for texte in ("PLAN 12 P3", "ÉPROUVETTE", "5 m", "0123456789"):
+        larg, haut = pt.taille_lettres(texte, D)
+        x0, y0, x1, y1 = pt.dessin_lettres(texte, 10.0, 20.0, D).bounds
+        assert x0 >= 10.0 - 1e-6 and x1 <= 10.0 + larg + 1e-6
+        assert y0 >= 20.0 - 1e-6
+        if "É" not in texte:
+            assert y1 <= 20.0 + haut + 1e-6
+    assert pt.en_lettres("plan 1 p2") == "PLAN 1 P2" and pt.en_lettres("5 m") == "5 m"
+    with pytest.raises(ValueError):
+        pt.taille_lettres("ß", D)
+
+
+def test_lettres_separees_et_assez_epaisses_pour_l_impression():
+    """Deux signes voisins ne se touchent pas, et chaque trait fait au moins
+    la largeur prévue (deux passes d'une buse de 0,4 mm)."""
+    lettres = pt.dessin_lettres("88", 0.0, 0.0, D)
+    assert len(pt._polygones(lettres)) == 2
+    assert D.lettre_trait >= 0.8
+
+
+def test_numero_du_local_en_chiffres_et_en_braille(plan_piece):
+    _, page, _ = plan_piece
+    des = page[1]
+    lettres = [g for g, h in des.prismes if h == D.lettre_relief]
+    points = [(x, y) for x, y, diam, _ in des.domes
+              if diam == D.point_diametre and D.bandeau < y < des.hauteur - D.bandeau]
+    assert lettres and points
+    # Les chiffres sont juste au-dessus (ou à droite) des points du numéro.
+    from shapely.geometry import MultiPoint
+    from shapely.ops import unary_union
+    assert D.distance + D.point_diametre / 2 - 1e-6 <= unary_union(lettres).distance(MultiPoint(points)) \
+        < 2 * D.distance
+
+
+def test_titre_et_echelle_aussi_en_lettres(plan_piece):
+    resume, page, _ = plan_piece
+    des = page[1]
+    bandeau_haut = [g for g, h in des.prismes if h == D.lettre_relief and g.bounds[1] > des.hauteur - D.bandeau]
+    bandeau_bas = [g for g, h in des.prismes if h == D.lettre_relief and g.bounds[3] < D.bandeau]
+    assert bandeau_haut and bandeau_bas
+    legende = resume["legende"].read_text(encoding="utf-8")
+    assert "écrit aussi en lettres : « PLAN 1 »" in legende and "⠏⠇⠁⠝⠀⠠⠡" in legende
+
+
+def test_etiquette_braille_seul_en_dernier_recours():
+    dispositions = pt.dispositions_etiquette("12", D)
+    assert [nom for nom, _, _ in dispositions] == ["dessous", "droite", "braille"]
+    assert dispositions[-1][1:] == pytest.approx(pt.taille_braille("12", D))
+    des = pt.Dessin(100.0, 100.0)
+    pt.poser_etiquette(des, "12", "braille", 10.0, 50.0, D)
+    assert des.domes and not des.prismes

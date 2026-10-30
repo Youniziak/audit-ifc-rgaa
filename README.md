@@ -208,8 +208,9 @@ python3 plan_tactile.py exemples/test_house.ifc
 Writes one STL file per level and a Markdown key (readable with a screen
 reader) into `exemples/test_house_plan_tactile/`. On the plate: raised
 walls, lower raised windows, doors as gaps in the wall, stairs as ridges,
-ramps as a sloping surface, lifts as a plateau, room numbers in French
-braille. The key gives each room's name, the symbols, the scale and the
+ramps as a sloping surface, lifts as a plateau, room numbers. Everything written on the plate (title, numbers, scale) is in
+braille and in raised ordinary letters, so it can be read with or without
+sight. The key gives each room's name, the symbols, the scale and the
 direction of every stair and ramp, and says what could not fit on the plate
 at that scale (a stair too small, a dome with no room left, a door without
 its triangle).
@@ -222,7 +223,7 @@ its triangle).
   many rooms could not get their number.
 - `--plateau 250x210`: maximum plate size in mm (200 × 200 by default).
 - `--eprouvette`: a test plate (wall heights, door gaps, braille dot heights,
-  stair ridge spacing and height) to print and touch before the first plan;
+  stair ridge spacing and height, letter size) to print and touch before the first plan;
   `--hauteur-murs`, `--hauteur-stries` and `--hauteur-points` then adjust
   the plan.
 - `--pdf`: the key also as an accessible PDF, checked with veraPDF when it is installed (as for the audit).
@@ -285,7 +286,7 @@ audit-ifc-rgaa/
 ├── README.md                    This document (English)
 ├── README.fr.md                 French version
 ├── CHANGELOG.md                 Version log
-├── VERSION                      Current version (0.6.0)
+├── VERSION                      Current version (0.6.1)
 ├── REFERENTIEL.md               Applied thresholds, article by article, with sources
 ├── PLAN_TACTILE.md              Tactile plan: dimensions, sources, choices to validate
 ├── LICENSE                      GPL-3.0 for the code

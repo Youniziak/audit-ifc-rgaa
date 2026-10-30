@@ -95,6 +95,9 @@ class Dimensions:
     bandeau: float = 14.0          # bandeaux du haut (titre) et du bas (échelle)
     coin: float = 8.0              # coin coupé en haut à gauche
     distance: float = 3.0          # entre une étiquette braille et le reste (BANA)
+    lettre_hauteur: float = 5.0    # lettres et chiffres ordinaires en relief, à côté du braille
+    lettre_relief: float = 0.8     # ADA 703.2.1 : 0,8 mm au moins
+    lettre_trait: float = 0.9      # deux passes d'une buse de 0,4 mm
     coupe: float = 0.50            # hauteur de coupe au-dessus du sol (mètres)
 
 
@@ -168,6 +171,120 @@ def points_braille(texte: str, x: float, y: float, d: Dimensions) -> list[tuple[
             colonne, rang = (0, k - 1) if k <= 3 else (1, k - 4)
             centres.append((x0 + colonne * d.point_ecart, y - r - rang * d.point_ecart))
     return centres
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  LETTRES ET CHIFFRES ORDINAIRES EN RELIEF
+# ─────────────────────────────────────────────────────────────────────────────
+#  Chaque texte en braille est doublé en lettres ordinaires, pour qu'une
+#  personne qui voit, ou qui voit mal, lise aussi la plaque. Police bâton
+#  sans empattement, en majuscules (ADA 703.2.2 et 703.2.3) : chaque signe
+#  est fait de traits sur une grille de 4 × 6 (x vers la droite, y vers le
+#  haut, ligne de base à 0, haut des majuscules à 6), épaissis à la largeur
+#  d'un trait. Ces lettres de 5 mm sont faites pour être vues ; des lettres
+#  à lire au doigt feraient 16 mm au moins (ADA 703.2.5).
+
+_O = [(1, 0), (3, 0), (4, 1), (4, 5), (3, 6), (1, 6), (0, 5), (0, 1), (1, 0)]
+_P = [(0, 0), (0, 6), (3, 6), (4, 5), (4, 4), (3, 3), (0, 3)]
+_E = [[(4, 6), (0, 6), (0, 0), (4, 0)], [(0, 3), (3, 3)]]
+_GLYPHES: dict[str, list] = {
+    "0": [_O, [(1, 1.5), (3, 4.5)]],
+    "1": [[(1, 5), (2, 6), (2, 0)], [(1, 0), (3, 0)]],
+    "2": [[(0, 5), (1, 6), (3, 6), (4, 5), (4, 4), (0, 0), (4, 0)]],
+    "3": [[(0, 5), (1, 6), (3, 6), (4, 5), (4, 4), (3, 3), (1.5, 3)],
+          [(3, 3), (4, 2), (4, 1), (3, 0), (1, 0), (0, 1)]],
+    "4": [[(3, 0), (3, 6), (0, 2), (4, 2)]],
+    "5": [[(4, 6), (0, 6), (0, 3.5), (3, 3.5), (4, 2.5), (4, 1), (3, 0), (1, 0), (0, 1)]],
+    "6": [[(4, 5), (3, 6), (1, 6), (0, 5), (0, 1), (1, 0), (3, 0), (4, 1), (4, 2.5), (3, 3.5),
+           (1, 3.5), (0, 2.5)]],
+    "7": [[(0, 6), (4, 6), (1.5, 0)]],
+    "8": [[(1, 3), (0, 4), (0, 5), (1, 6), (3, 6), (4, 5), (4, 4), (3, 3), (1, 3), (0, 2), (0, 1),
+           (1, 0), (3, 0), (4, 1), (4, 2), (3, 3)]],
+    "9": [[(0, 1), (1, 0), (3, 0), (4, 1), (4, 5), (3, 6), (1, 6), (0, 5), (0, 3.5), (1, 2.5),
+           (3, 2.5), (4, 3.5)]],
+    "A": [[(0, 0), (2, 6), (4, 0)], [(0.67, 2), (3.33, 2)]],
+    "B": [[(0, 0), (0, 6), (3, 6), (4, 5), (4, 4), (3, 3), (0, 3)],
+          [(3, 3), (4, 2), (4, 1), (3, 0), (0, 0)]],
+    "C": [[(4, 5), (3, 6), (1, 6), (0, 5), (0, 1), (1, 0), (3, 0), (4, 1)]],
+    "D": [[(0, 0), (0, 6), (2.5, 6), (4, 4.5), (4, 1.5), (2.5, 0), (0, 0)]],
+    "E": _E,
+    "F": [[(4, 6), (0, 6), (0, 0)], [(0, 3), (3, 3)]],
+    "G": [[(4, 5), (3, 6), (1, 6), (0, 5), (0, 1), (1, 0), (3, 0), (4, 1), (4, 3), (2.5, 3)]],
+    "H": [[(0, 0), (0, 6)], [(4, 0), (4, 6)], [(0, 3), (4, 3)]],
+    "I": [[(2, 0), (2, 6)], [(1, 0), (3, 0)], [(1, 6), (3, 6)]],
+    "J": [[(4, 6), (4, 1), (3, 0), (1, 0), (0, 1)]],
+    "K": [[(0, 0), (0, 6)], [(4, 6), (0, 2)], [(1.3, 3.3), (4, 0)]],
+    "L": [[(0, 6), (0, 0), (4, 0)]],
+    "M": [[(0, 0), (0, 6), (2, 3), (4, 6), (4, 0)]],
+    "N": [[(0, 0), (0, 6), (4, 0), (4, 6)]],
+    "O": [_O],
+    "P": [_P],
+    "Q": [_O, [(2.5, 1.5), (4, 0)]],
+    "R": [_P, [(2, 3), (4, 0)]],
+    "S": [[(4, 5), (3, 6), (1, 6), (0, 5), (0, 4), (1, 3), (3, 3), (4, 2), (4, 1), (3, 0), (1, 0),
+           (0, 1)]],
+    "T": [[(0, 6), (4, 6)], [(2, 6), (2, 0)]],
+    "U": [[(0, 6), (0, 1), (1, 0), (3, 0), (4, 1), (4, 6)]],
+    "V": [[(0, 6), (2, 0), (4, 6)]],
+    "W": [[(0, 6), (1, 0), (2, 3), (3, 0), (4, 6)]],
+    "X": [[(0, 0), (4, 6)], [(0, 6), (4, 0)]],
+    "Y": [[(0, 6), (2, 3), (4, 6)], [(2, 3), (2, 0)]],
+    "Z": [[(0, 6), (4, 6), (0, 0), (4, 0)]],
+    # Minuscule de l'unité « m » (mètre), à la hauteur d'une minuscule.
+    "m": [[(0, 0), (0, 4)], [(0, 3), (1, 4), (2, 3), (2, 0)], [(2, 3), (3, 4), (4, 3), (4, 0)]],
+    "-": [[(1, 3), (3, 3)]],
+    ".": [[(2, 0), (2, 0.01)]],
+}
+_ACCENTS = {"É": ("E", [(1.5, 6.9), (2.7, 7.9)]), "È": ("E", [(1.3, 7.9), (2.5, 6.9)]),
+            "Ê": ("E", [(1, 6.9), (2, 7.9), (3, 6.9)]), "À": ("A", [(1.3, 7.9), (2.5, 6.9)])}
+
+
+def _traits(car: str) -> list:
+    if car in _ACCENTS:
+        base, accent = _ACCENTS[car]
+        return _GLYPHES[base] + [accent]
+    if car in _GLYPHES:
+        return _GLYPHES[car]
+    raise ValueError(f"caractère non pris en charge en lettres en relief : {car!r}")
+
+
+def _avance(h: float, d: Dimensions) -> float:
+    """D'un signe au suivant : sa largeur (4/6 de la hauteur) et un écart
+    assez grand pour que deux traits voisins restent séparés à l'œil."""
+    return 4 * h / 6 + max(1.6 * h / 6, d.lettre_trait + 0.8)
+
+
+def taille_lettres(texte: str, d: Dimensions, h: Optional[float] = None) -> tuple[float, float]:
+    """(largeur, hauteur) en mm d'une ligne de lettres en relief, épaisseur
+    des traits comprise (h : hauteur des majuscules, d.lettre_hauteur par
+    défaut ; les accents dépassent au-dessus)."""
+    h = h or d.lettre_hauteur
+    for car in texte:
+        if car != " ":
+            _traits(car)
+    return max(len(texte) - 1, 0) * _avance(h, d) + 4 * h / 6 + d.lettre_trait, h + d.lettre_trait
+
+
+def dessin_lettres(texte: str, x: float, y_bas: float, d: Dimensions, h: Optional[float] = None):
+    """Polygones d'une ligne de lettres en relief dont la boîte (voir
+    taille_lettres) a son coin bas gauche en (x, y_bas), en mm."""
+    h = h or d.lettre_hauteur
+    u = h / 6
+    y_base = y_bas + d.lettre_trait / 2
+    morceaux = []
+    for i, car in enumerate(texte):
+        if car == " ":
+            continue
+        x0 = x + d.lettre_trait / 2 + i * _avance(h, d)
+        for trait in _traits(car):
+            pts = [(x0 + a * u, y_base + b * u) for a, b in trait]
+            morceaux.append(LineString(pts).buffer(d.lettre_trait / 2, quad_segs=4))
+    return unary_union(morceaux) if morceaux else Polygon()
+
+
+def en_lettres(texte: str) -> str:
+    """Texte à écrire en lettres ordinaires : majuscules, sauf l'unité « m »."""
+    return " ".join(mot if mot == "m" else mot.upper() for mot in texte.split(" "))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -936,9 +1053,9 @@ def decoupage(etendue: tuple[float, float], den: int, plateau: tuple[float, floa
 
 def echelle_pour_numeros(niveaux: list, d: Dimensions) -> Optional[int]:
     """Plus petite échelle de la liste où 8 locaux sur 10 au moins sont assez
-    grands pour porter un numéro à deux chiffres (estimation sur le plus
-    petit rectangle qui contient chaque local)."""
-    larg, haut = taille_braille("99", d)
+    grands pour porter un numéro à deux chiffres, en chiffres et en braille
+    (estimation sur le plus petit rectangle qui contient chaque local)."""
+    tailles = [(larg, haut) for _, larg, haut in dispositions_etiquette("99", d)]
     jeu = 2 * (d.distance + 1.0)
     besoins = []
     for niv in niveaux:
@@ -949,7 +1066,8 @@ def echelle_pour_numeros(niveaux: list, d: Dimensions) -> Optional[int]:
             a, b = sorted(np.hypot(*np.diff(pts[:3], axis=0).T))
             if a <= 0:
                 continue
-            besoins.append(min(a * 1000 / (haut + jeu), b * 1000 / (larg + jeu)))
+            besoins.append(max(min(a * 1000 / (haut + jeu), b * 1000 / (larg + jeu))
+                               for larg, haut in tailles))
     if not besoins:
         return None
     seuil = float(np.percentile(besoins, 20))
@@ -986,6 +1104,40 @@ def _direction_en_mots(dx: float, dy: float) -> str:
             "vers le haut et la gauche", "vers la gauche", "vers le bas et la gauche",
             "vers le bas", "vers le bas et la droite"]
     return noms[int(((angle + 22.5) % 360) // 45)]
+
+
+def dispositions_etiquette(texte: str, d: Dimensions) -> list[tuple[str, float, float]]:
+    """Façons de poser une étiquette (le texte en lettres ordinaires et en
+    braille) : (« dessous », « droite » ou « braille », largeur, hauteur) en
+    mm. D'abord le braille sous les lettres, comme sur les panneaux
+    (ADA 703.3.2) ; pour les locaux étroits, le braille à gauche et les
+    lettres à sa droite ; en dernier recours, le braille seul."""
+    bl, bh = taille_braille(texte, d)
+    ll, lh = taille_lettres(en_lettres(texte), d)
+    return [("dessous", max(bl, ll), lh + d.distance + bh),
+            ("droite", bl + d.distance + ll, max(bh, lh)),
+            ("braille", bl, bh)]
+
+
+def poser_etiquette(des, texte: str, disposition: str, x: float, y_haut: float, d: Dimensions) -> None:
+    """Met dans le dessin les points braille et les lettres d'une étiquette
+    dont le coin haut gauche est en (x, y_haut)."""
+    bl, bh = taille_braille(texte, d)
+    ll, lh = taille_lettres(en_lettres(texte), d)
+    if disposition == "braille":
+        lettres = None
+        points = points_braille(texte, x, y_haut, d)
+    elif disposition == "dessous":
+        lettres = dessin_lettres(en_lettres(texte), x, y_haut - lh, d)
+        points = points_braille(texte, x, y_haut - lh - d.distance, d)
+    else:
+        h = max(bh, lh)
+        points = points_braille(texte, x, y_haut - (h - bh) / 2, d)
+        lettres = dessin_lettres(en_lettres(texte), x + bl + d.distance, y_haut - (h + lh) / 2, d)
+    for px, py in points:
+        des.domes.append((px, py, d.point_diametre, d.point_hauteur))
+    if lettres is not None:
+        des.prismes.append((lettres, d.lettre_relief))
 
 
 def _place_etiquette(zone, largeur: float, hauteur: float, cible) -> Optional[tuple[float, float]]:
@@ -1029,6 +1181,7 @@ class Dessin:
     domes: list = field(default_factory=list)       # (x, y, diamètre, hauteur)
     numeros: list = field(default_factory=list)     # (numéro, nom du local)
     sans_numero: list = field(default_factory=list)
+    braille_seul: list = field(default_factory=list)  # numéros sans la place pour les chiffres
     reperes: list = field(default_factory=list)     # (numéro, lignes, local)
     escaliers: list = field(default_factory=list)   # textes pour la légende
     rampes: list = field(default_factory=list)
@@ -1036,6 +1189,7 @@ class Dessin:
     entrees: int = 0
     entrees_sans_place: int = 0                     # portes vers l'extérieur sans triangle
     titre_a_droite: bool = False                    # pour laisser la place à un triangle d'entrée
+    titre_sans_lettres: bool = False                # plaque trop étroite pour le titre en lettres
     barre_a_droite: bool = False
     non_dessines: list = field(default_factory=list)  # trop petits à cette échelle
     poteaux_omis: int = 0
@@ -1219,9 +1373,16 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         if longueur >= 20:
             break
     texte_echelle = f"{metres} m"
-    larg_titre = taille_braille(page.titre, d)[0]
-    larg_barre = longueur + d.distance + 1.0 + taille_braille(texte_echelle, d)[0]
+    # Titre et longueur de la barre : en braille, puis en lettres ordinaires.
+    larg_titre_braille = taille_braille(page.titre, d)[0]
+    larg_titre = larg_titre_braille + d.distance + taille_lettres(en_lettres(page.titre), d)[0]
+    larg_barre = (longueur + d.distance + 1.0 + taille_braille(texte_echelle, d)[0] + d.distance
+                  + taille_lettres(texte_echelle, d)[0])
     fin_haut = W - d.marge - (12 + d.distance if nord is not None else 0)
+    if d.coin + d.distance + 1.0 + larg_titre > fin_haut:
+        # Plaque trop étroite pour le titre en lettres : braille seul.
+        larg_titre = larg_titre_braille
+        des.titre_sans_lettres = True
     positions_titre = (d.coin + d.distance + 1.0, fin_haut - larg_titre)
     positions_barre = (d.marge, W - d.marge - larg_barre)
     fleche_nord = box(W - d.marge - 12, H - d.bandeau, W, H) if nord is not None else Polygon()
@@ -1322,7 +1483,8 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
     for lignes, local in sans_place:
         des.reperes.append((len(des.reperes) + 1, lignes, local, False))
 
-    # Numéros des locaux en braille, à 3 mm au moins de tout autre relief.
+    # Numéros des locaux en chiffres et en braille, à 3 mm au moins de tout
+    # autre relief.
     garde = unary_union([reliefs, occupe.difference(portes)]).buffer(d.distance)
     candidats = []
     for local in niv.locaux:
@@ -1337,24 +1499,31 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
     for local, f in candidats:
         numero += 1
         texte = str(numero)
-        larg, haut = taille_braille(texte, d)
         zone = f.difference(garde).intersection(zone_dessin)
-        coin = _place_etiquette(zone, larg, haut, f.representative_point())
+        for disposition, larg, haut in dispositions_etiquette(texte, d):
+            coin = _place_etiquette(zone, larg, haut, f.representative_point())
+            if coin is not None:
+                break
         if coin is None:
             des.sans_numero.append((numero, local.nom))
             continue
-        places.append((texte, coin))
+        places.append((texte, disposition, coin))
         des.numeros.append((numero, local.nom))
+        if disposition == "braille":
+            des.braille_seul.append(numero)
         garde = garde.union(box(coin[0], coin[1] - haut, coin[0] + larg, coin[1]).buffer(d.distance))
-    for texte, (cx, cy) in places:
-        for x, y in points_braille(texte, cx, cy, d):
-            des.domes.append((x, y, d.point_diametre, d.point_hauteur))
+    for texte, disposition, (cx, cy) in places:
+        poser_etiquette(des, texte, disposition, cx, cy, d)
 
-    # Bandeau du haut : titre en braille ; flèche du nord à droite.
+    # Bandeau du haut : titre en braille, puis en lettres ; flèche du nord à droite.
     tx = x_titre
     ty = H - (d.bandeau - taille_braille(page.titre, d)[1]) / 2
     for x, y in points_braille(page.titre, tx, ty, d):
         des.domes.append((x, y, d.point_diametre, d.point_hauteur))
+    if not des.titre_sans_lettres:
+        haut_lettres = taille_lettres(en_lettres(page.titre), d)[1]
+        des.prismes.append((dessin_lettres(en_lettres(page.titre), tx + larg_titre_braille + d.distance,
+                                           H - d.bandeau / 2 - haut_lettres / 2, d), d.lettre_relief))
     if nord is not None:
         nx, ny = nord
         cx, cy = W - d.marge - 6, H - d.bandeau / 2
@@ -1381,6 +1550,10 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
     if lx + larg < W - d.marge + 1e-6:
         for x, y in points_braille(texte, lx, by + haut / 2, d):
             des.domes.append((x, y, d.point_diametre, d.point_hauteur))
+        lx += larg + d.distance
+        larg_l, haut_l = taille_lettres(texte, d)
+        if lx + larg_l < W - d.marge + 1e-6:
+            des.prismes.append((dessin_lettres(texte, lx, by - haut_l / 2, d), d.lettre_relief))
     return des
 
 
@@ -1598,6 +1771,13 @@ def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
     H = min(plateau[1], pas_y * k + 2 * d.bandeau)
     W, H = max(W, 110.0), max(H, 70.0)
     nord = _nord(ifc_file)
+    # La plaque s'élargit (dans la limite du plateau) pour que le plus long
+    # titre tienne dans son bandeau en braille et en lettres ordinaires.
+    titres = [f"plan {i + 1}" + (f" p{nx * ny}" if nx * ny > 1 else "") for i in range(len(niveaux))]
+    besoin = max(d.coin + d.distance + 1.0 + taille_braille(t, d)[0] + d.distance
+                 + taille_lettres(en_lettres(t), d)[0] + d.distance
+                 + (12 + d.distance if nord is not None else 0) + d.marge for t in titres)
+    W = max(W, min(besoin, plateau[0]))
 
     dossier.mkdir(parents=True, exist_ok=True)
     base = Path(chemin_ifc).stem
@@ -1673,11 +1853,14 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
         L.append(f"- **Plusieurs parties par niveau** : {nx} en largeur, {ny} en hauteur. "
                  "La partie 1 est en haut à gauche ; les numéros avancent de gauche à droite, "
                  "puis vers le bas, comme une lecture.")
-    L.append("- **Sens de lecture** : le coin coupé est en haut à gauche ; le titre en braille "
-             "est dans le bandeau du haut, la barre d'échelle dans celui du bas.")
+    L.append("- **Sens de lecture** : le coin coupé est en haut à gauche ; le titre est dans le "
+             "bandeau du haut, en braille puis en lettres ordinaires, la barre d'échelle dans "
+             "celui du bas.")
     L.append(f"- **Coupe** : à {_metres(d.coupe)} au-dessus du sol de chaque niveau.")
     if not nord_connu:
         L.append("- **Nord** : la maquette ne l'indique pas ; pas de flèche.")
+    L.append(f"- **Pour mieux voir le relief** : changer de couleur de filament juste au-dessus du "
+             f"socle, à {_mm(d.socle + 0.2)} (par exemple socle foncé, reliefs clairs).")
     if reperes[0] < reperes[1]:
         L.append(f"- **Repères des écarts** : {reperes[0]} sur {reperes[1]} ont leur dôme sur la "
                  "plaque. Un dôme ne passe pas dans un local trop petit à cette échelle, et il ne "
@@ -1701,21 +1884,29 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
     L.append(f"- **Rampe** : plan incliné, de {_mm(d.rampe_bas)} en bas à {_mm(d.rampe_haut)} "
              "du côté où la rampe monte.")
     L.append(f"- **Ascenseur ou élévateur** : plateau de {_mm(d.ascenseur)}.")
-    L.append("- **Local** : numéro en braille, au sol du local ; son nom est ci-dessous.")
+    L.append(f"- **Local** : numéro en chiffres en relief ({_mm(d.lettre_hauteur)} de haut), avec "
+             "le même numéro en braille dessous, ou à gauche dans un local étroit ; son nom est "
+             "ci-dessous.")
     if rapport is not None:
         L.append(f"- **Écart de l'audit** : dôme de {_mm(d.repere_diametre)} de diamètre, sans "
                  "numéro sur la plaque. Les repères sont numérotés ci-dessous dans l'ordre où la "
                  "main les rencontre en lisant la plaque : de haut en bas, puis de gauche à droite.")
     if nord_connu:
         L.append("- **Nord** : flèche en relief, à droite du bandeau du haut.")
-    L.append("- **Échelle** : barre en relief dans le bandeau du bas, longueur en braille à droite.")
+    L.append("- **Échelle** : barre en relief dans le bandeau du bas, longueur en braille puis en "
+             "lettres à sa droite.")
     for i, niv, partie, titre, des, chemin, _ in pages_info:
         L.append("")
         nom_partie = f"Plan {i + 1}" + (f", partie {partie}" if nx * ny > 1 else "")
         L.append(f"## {nom_partie} — niveau « {niv.nom} »")
         L.append("")
-        L.append(f"Fichier : `{chemin.name}`. Braille du titre : {braille_unicode(titre)}. "
-                 f"Barre d'échelle : {des.echelle_m} m.")
+        lettres = ("" if des.titre_sans_lettres
+                   else f", écrit aussi en lettres : « {en_lettres(titre)} »")
+        L.append(f"Fichier : `{chemin.name}`. Titre « {titre} », en braille {braille_unicode(titre)}"
+                 f"{lettres}. Barre d'échelle : {des.echelle_m} m (en braille "
+                 f"{braille_unicode(f'{des.echelle_m} m')}).")
+        if des.titre_sans_lettres:
+            L.append("La plaque est trop étroite pour le titre en lettres : il n'est qu'en braille.")
         if des.nord:
             L.append(f"Le nord est {des.nord} de la plaque.")
         deplaces = [x for x, oui in (("le titre est à droite du bandeau du haut", des.titre_a_droite),
@@ -1734,7 +1925,9 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
             L.append("")
             absents = {num for num, _ in des.sans_numero}
             for num, nom in sorted(des.numeros + des.sans_numero):
-                fin = " — trop petit à cette échelle, numéro absent de la plaque" if num in absents else ""
+                fin = (" — trop petit à cette échelle, numéro absent de la plaque" if num in absents
+                       else " — numéro en braille seulement, pas la place pour les chiffres"
+                       if num in des.braille_seul else "")
                 L.append(f"- {num} : {nom}{fin}")
         if (des.escaliers or des.rampes or des.ascenseurs or des.entrees or niv.portes_ext_ambigues
                 or des.poteaux_omis or niv.rampes_plates or des.non_dessines or des.entrees_sans_place):
@@ -1796,72 +1989,92 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Path, Path]:
-    """Plaque de 150 × 120 mm pour choisir les hauteurs en les touchant."""
-    W, H = 150.0, 120.0
+    """Plaque de 150 × 140 mm pour choisir les hauteurs en les touchant."""
+    W, H = 150.0, 140.0
     des = Dessin(W, H)
     lignes = ["# Éprouvette du plan tactile", "",
-              "Plaque de 150 × 120 mm, coin coupé en haut à gauche, titre « eprouvette » en "
-              "braille dans le bandeau du haut. Cinq rangées d'essais, de haut en bas ; "
-              "chaque essai commence par son numéro en braille, à gauche. Touchez-les et "
-              "notez, pour chaque rangée, le numéro qui se lit le mieux.", ""]
+              "Plaque de 150 × 140 mm, coin coupé en haut à gauche. Dans le bandeau du haut, "
+              f"le titre « eprouvette » en braille ({braille_unicode('eprouvette')}), puis en "
+              "lettres ordinaires en relief (« ÉPROUVETTE »). Six rangées d'essais, de haut en "
+              "bas ; chaque essai commence, à gauche, par son numéro en chiffres en relief, avec "
+              "le même numéro en braille dessous. Touchez-les et notez, pour chaque rangée, le "
+              "numéro qui se lit le mieux.", ""]
 
-    def etiquette(texte, x, y_centre, h=d.point_hauteur):
-        _, haut = taille_braille(texte, d)
-        for px, py in points_braille(texte, x, y_centre + haut / 2, d):
-            des.domes.append((px, py, d.point_diametre, h))
-        return x + taille_braille(texte, d)[0]
+    def numero(i: int, x: float, yc: float) -> float:
+        """Numéro d'un essai (chiffres, braille dessous), centré sur yc ;
+        retourne le bord droit de l'étiquette."""
+        _, larg, haut = dispositions_etiquette(str(i), d)[0]
+        poser_etiquette(des, str(i), "dessous", x, yc + haut / 2, d)
+        return x + larg
 
-    etiquette("eprouvette", d.coin + d.distance + 1.0, H - d.bandeau / 2)
+    def ligne(i: int, texte: str) -> str:
+        return f"- {i} (braille {braille_unicode(str(i))}) : {texte}"
+
+    tx = d.coin + d.distance + 1.0
+    for px, py in points_braille("eprouvette", tx, H - (d.bandeau - taille_braille("eprouvette", d)[1]) / 2, d):
+        des.domes.append((px, py, d.point_diametre, d.point_hauteur))
+    des.prismes.append((dessin_lettres("ÉPROUVETTE", tx + taille_braille("eprouvette", d)[0] + d.distance,
+                                       H - d.bandeau / 2 - taille_lettres("E", d)[1] / 2, d),
+                        d.lettre_relief))
     ecart = 4.0  # entre un numéro et son essai
 
     lignes += ["## Rangée 1 : hauteur des murs", ""]
-    yc = 96.0
-    for i, h in enumerate((2.0, 3.0, 4.0, 5.0)):
-        x = 6 + i * 36
-        fin_num = etiquette(str(i + 1), x, yc) + ecart
+    yc = 116.0
+    for i, h in enumerate((2.0, 3.0, 4.0, 5.0), 1):
+        fin_num = numero(i, 6 + (i - 1) * 36, yc) + ecart
         des.prismes.append((box(fin_num, yc - d.largeur_min / 2, fin_num + 18, yc + d.largeur_min / 2), h))
-        lignes.append(f"- {i + 1} : mur de {_mm(h)} de haut, {_mm(d.largeur_min)} de large")
+        lignes.append(ligne(i, f"mur de {_mm(h)} de haut, {_mm(d.largeur_min)} de large"))
 
     lignes += ["", f"## Rangée 2 : passage de porte dans un mur de {_mm(d.mur)}", ""]
-    yc = 76.0
-    for i, g in enumerate((3.0, 5.0, 8.0)):
-        x = 6 + i * 48
-        fin_num = etiquette(str(i + 1), x, yc) + ecart
+    yc = 96.0
+    for i, g in enumerate((3.0, 5.0, 8.0), 1):
+        fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
         for x0, x1 in ((fin_num, fin_num + 10), (fin_num + 10 + g, fin_num + 20 + g)):
             des.prismes.append((box(x0, yc - d.largeur_min / 2, x1, yc + d.largeur_min / 2), d.mur))
-        lignes.append(f"- {i + 1} : passage de {_mm(g)}")
+        lignes.append(ligne(i, f"passage de {_mm(g)}"))
 
-    lignes += ["", "## Rangée 3 : hauteur des points braille (mot « mur »)", ""]
-    yc = 56.0
-    for i, h in enumerate((0.5, 0.6, 0.7, 0.8)):
-        x = 6 + i * 36
-        fin_num = etiquette(str(i + 1), x, yc) + ecart
-        etiquette("mur", fin_num, yc, h)
-        lignes.append(f"- {i + 1} : points de {_mm(h)} de haut, {_mm(d.point_diametre)} de diamètre")
+    lignes += ["", "## Rangée 3 : hauteur des points braille (mot « mur », en lettres au-dessus)", ""]
+    yc = 76.0
+    for i, h in enumerate((0.5, 0.6, 0.7, 0.8), 1):
+        fin_num = numero(i, 6 + (i - 1) * 36, yc) + ecart
+        dd = replace(d, point_hauteur=h)
+        _, _, haut = dispositions_etiquette("mur", dd)[0]
+        poser_etiquette(des, "mur", "dessous", fin_num, yc + haut / 2, dd)
+        lignes.append(ligne(i, f"points de {_mm(h)} de haut, {_mm(d.point_diametre)} de diamètre "
+                               f"({braille_unicode('mur')})"))
 
     lignes += ["", f"## Rangée 4 : écart des stries d'escalier ({_mm(d.strie)} de haut)", ""]
-    yc = 36.0
-    for i, pas in enumerate((2.0, 3.0, 4.0)):
-        x = 6 + i * 48
-        fin_num = etiquette(str(i + 1), x, yc) + ecart
-        dd = replace(d, strie_pas=pas)
-        stries = _rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), dd)
+    yc = 56.0
+    for i, pas in enumerate((2.0, 3.0, 4.0), 1):
+        fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
+        stries = _rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), replace(d, strie_pas=pas))
         des.prismes.append((stries, d.strie))
-        lignes.append(f"- {i + 1} : stries tous les {_mm(pas)}")
+        lignes.append(ligne(i, f"stries tous les {_mm(pas)}"))
 
     # L'étude de Kaplan et Pyayt trouve trop bas les codages d'escalier de 1 et
     # 2 mm : la hauteur des stries se choisit donc aussi en touchant.
     lignes += ["", f"## Rangée 5 : hauteur des stries d'escalier (tous les {_mm(d.strie_pas)})", ""]
-    yc = 16.0
-    for i, h in enumerate((1.0, 2.0, 3.0)):
-        x = 6 + i * 48
-        fin_num = etiquette(str(i + 1), x, yc) + ecart
-        stries = _rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), d)
-        des.prismes.append((stries, h))
-        lignes.append(f"- {i + 1} : stries de {_mm(h)} de haut")
+    yc = 36.0
+    for i, h in enumerate((1.0, 2.0, 3.0), 1):
+        fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
+        des.prismes.append((_rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), d), h))
+        lignes.append(ligne(i, f"stries de {_mm(h)} de haut"))
 
-    lignes += ["", f"Les numéros et le titre ont des points de {_mm(d.point_hauteur)}. "
-               f"Socle de {_mm(d.socle)}.", ""]
+    # Les lettres ordinaires sont là pour être vues : leur taille se choisit
+    # à l'œil, et à la loupe pour qui voit mal.
+    lignes += ["", f"## Rangée 6 : taille des lettres ordinaires (« AB8 », relief de "
+               f"{_mm(d.lettre_relief)})", ""]
+    yc = 16.0
+    for i, h in enumerate((4.0, 6.0, 8.0), 1):
+        fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
+        des.prismes.append((dessin_lettres("AB8", fin_num, yc - taille_lettres("AB8", d, h)[1] / 2, d, h),
+                            d.lettre_relief))
+        lignes.append(ligne(i, f"lettres de {_mm(h)} de haut"))
+
+    lignes += ["", f"Les numéros et le titre ont des points de {_mm(d.point_hauteur)} et des "
+               f"lettres de {_mm(d.lettre_hauteur)}. Socle de {_mm(d.socle)}.", "",
+               "Pour mieux voir le relief : changer de couleur de filament juste au-dessus du "
+               f"socle, à {_mm(d.socle + 0.2)} (par exemple socle foncé, reliefs clairs).", ""]
     dossier.mkdir(parents=True, exist_ok=True)
     stl = dossier / "eprouvette_plan_tactile.stl"
     ecrire_stl(relief(des, d), stl)
