@@ -148,6 +148,81 @@ def test_marches_inegales_non_mesurees(tmp_path):
     assert any("Escalier non contrôlé pour 1 volée" in r for r in rapport.remarques)
 
 
+def _profil_marches(n, h, g):
+    points = [(0.0, 0.0)]
+    for i in range(n):
+        points += [(i * g, (i + 1) * h), ((i + 1) * g, (i + 1) * h)]
+    points.append((n * g, 0.0))
+    return points
+
+
+@pytest.mark.parametrize("altitude", [3.0005, 3.0025, 3.0045, 7.4981])
+@pytest.mark.parametrize("ref, h", [(NEUF, 0.16), (EXISTANT, 0.17)], ids=["neuf", "existant"])
+def test_marche_au_seuil_exact_a_toute_altitude(tmp_path, altitude, ref, h):
+    # Une marche d'exactement 16 cm (neuf) ou 17 cm (existant) est conforme,
+    # quelle que soit l'altitude de l'escalier.
+    m = Maquette()
+    m.objet_profils("IfcStair", [((0.0, 0.0, altitude), (0.6, 0.8), _profil_marches(10, h, 0.28), 1.30)],
+                    "Escalier en étage")
+    assert severites(m.auditer(tmp_path, ref), TYPE) == []
+
+
+def test_valeur_declaree_negative_ignoree(tmp_path):
+    m = Maquette()
+    esc = m.escalier_dessine(marches=8, hauteur=0.15, giron=0.30, largeur=1.30)
+    import ifcopenshell.api.pset
+    pset = ifcopenshell.api.pset.add_pset(m.model, product=esc, name="Pset_StairCommon")
+    ifcopenshell.api.pset.edit_pset(m.model, pset=pset, properties={"RiserHeight": -0.17})
+    rapport = m.auditer(tmp_path, NEUF)
+    assert "Hauteur de marche mesurée sur la géométrie conforme : 0,15 m." in constats(rapport)
+
+
+def test_largeur_non_controlee_signalee(tmp_path):
+    # Escalier en L : hauteur et giron déclarés, largeur impossible à mesurer.
+    m = Maquette()
+    marches = _profil_marches(5, 0.16, 0.30)[1:-1]
+    esc = m.objet_profils("IfcStair", [
+        ((0.0, 0.0, 0.0), (1.0, 0.0), [(0.0, 0.0)] + marches + [(1.5, 0.0)], 0.90),
+        ((1.5, 0.0, 0.0), (0.0, 1.0), [(0.0, 0.0)] + [(x, z + 0.80) for x, z in marches] + [(1.5, 0.0)], 0.90),
+    ], "Escalier en L")
+    import ifcopenshell.api.pset
+    pset = ifcopenshell.api.pset.add_pset(m.model, product=esc, name="Pset_StairCommon")
+    ifcopenshell.api.pset.edit_pset(m.model, pset=pset, properties={"RiserHeight": 0.16, "TreadLength": 0.30})
+    rapport = m.auditer(tmp_path, NEUF)
+    assert severites(rapport, TYPE) == []
+    assert any("Largeur d'escalier non contrôlée pour 1 volée" in r for r in rapport.remarques)
+
+
+def test_limon_seul_pas_pris_pour_la_largeur(tmp_path):
+    # Volée réduite à un limon central de 0,20 m (marches modélisées à part) :
+    # sa largeur n'est pas celle de l'escalier.
+    m = Maquette()
+    m.escalier_dessine(marches=8, hauteur=0.16, giron=0.30, largeur=0.20)
+    rapport = m.auditer(tmp_path, NEUF)
+    assert severites(rapport, TYPE) == []
+    assert any("Largeur d'escalier non contrôlée" in r for r in rapport.remarques)
+
+
+def test_volee_orpheline_controlee(tmp_path):
+    m = Maquette()
+    volee = m.escalier_dessine(5, 0.18, 0.30, 1.30, nom="Volée seule", classe="IfcStairFlight")
+    m._ranger_contenu(volee)
+    rapport = m.auditer(tmp_path, NEUF)
+    assert severites(rapport, TYPE) == ["majeure"]
+
+
+def test_valeur_au_millimetre_pres_du_seuil(tmp_path):
+    # 0,2794 m : arrondi au centimètre, le message dirait « 0,28 m » non conforme
+    # à « 0,28 m au moins ». Il affiche le millimètre.
+    m = Maquette()
+    esc = m._creer("IfcStair", "Escalier déclaré")
+    import ifcopenshell.api.pset
+    pset = ifcopenshell.api.pset.add_pset(m.model, product=esc, name="Pset_StairCommon")
+    ifcopenshell.api.pset.edit_pset(m.model, pset=pset, properties={"TreadLength": 0.2794})
+    rapport = m.auditer(tmp_path, NEUF)
+    assert rapport.non_conformites[0].constat == "Giron déclaré : 0,279 m."
+
+
 def test_escalier_sans_donnees(tmp_path):
     # Une donnée manquante n'est pas une non-conformité : elle est signalée.
     m = Maquette()

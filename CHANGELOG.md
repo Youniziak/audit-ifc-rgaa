@@ -11,13 +11,18 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 - **Largeur des escaliers** (article 7-1 ou 7.1) : 1,20 m entre mains
   courantes pour le neuf, 1 m pour l'existant. L'outil mesure la largeur de
-  la volée sur la géométrie : plus étroite que le minimum, elle est non
-  conforme à coup sûr ; assez large, la largeur entre mains courantes reste
-  à vérifier.
+  la volée sur la géométrie : plus étroite que le minimum, elle ne peut pas
+  offrir la largeur exigée (dans l'existant, les dimensions initiales restent
+  conservables sans travaux) ; assez large, la largeur entre mains courantes
+  reste à vérifier.
 - **Hauteur de marche et giron mesurés sur la géométrie** quand le BIM ne
   les déclare pas ; lus aussi dans les attributs de la volée et dans
   `Pset_StairFlightCommon`. Contrôle volée par volée.
-- Tests `tests/test_escaliers.py`. Essai sur trois maquettes publiques
+- Volées sans escalier parent contrôlées ; largeur non mesurée signalée.
+- Tests `tests/test_escaliers.py`, dont les cas trouvés en relecture :
+  marche d'exactement 16 ou 17 cm à toute altitude, valeur déclarée
+  négative, escalier en L, limon seul, valeur au millimètre près du seuil.
+  Essai sur trois maquettes publiques
   exportées d'ArchiCAD : leurs escaliers tournants ne sont pas mesurés, et
   le cas réel d'une marche à deux faces horizontales (structure et giron
   rapporté) est pris en compte.

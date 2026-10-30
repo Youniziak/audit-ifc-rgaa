@@ -185,7 +185,7 @@ buildings (arrêté of 8 December 2014). Details and sources:
 | Doors, width | 0.90 m (0.80 m for non-adapted toilets and cubicles) | 0.80 m | Art. 10 |
 | Stairs, tread depth | at least 0.28 m | at least 0.28 m | Art. 7-1 (new), 7.1 (existing) |
 | Stairs, riser height | at most 0.16 m | at most 0.17 m | Art. 7-1 (new), 7.1 (existing) |
-| Stairs, flight width | at least 1.20 m (between handrails, to be checked) | at least 1 m | Art. 7-1 (new), 7.1 (existing) |
+| Stairs, flight width | at least 1.20 m between handrails (to be checked) | at least 1 m between handrails; original dimensions may be kept if no works | Art. 7-1 (new), 7.1 (existing) |
 | Ramps, slope and length | 5%; 8% over 2 m; 10% over 0.50 m | 6%; 10% over 2 m; 12% over 0.50 m | Art. 2, applied indoors by Art. 6 |
 | Ramps, resting landing | every 10 m from 4%; 1.20 × 1.40 m | every 10 m from 5%; 1.20 × 1.40 m | Art. 2 and Annex 2 |
 | Door thresholds (small steps) | 2 cm; 4 cm with a bevel of at most 33% | same | Art. 2, applied indoors by Art. 6 |

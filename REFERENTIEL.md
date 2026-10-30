@@ -68,7 +68,12 @@ Les rapports suivent la numérotation du texte appliqué.
   seul objet), ou si leurs hauteurs ou leurs girons varient, la géométrie
   n'est pas exploitée : mieux vaut ne rien dire qu'une valeur fausse. Quand
   une marche porte deux faces horizontales proches (le dessus de la structure
-  et celui du giron posé dessus), seule la plus haute compte.
+  et celui du giron posé dessus), seule la plus haute compte ; en contrepartie,
+  des marches de moins de 9 cm de haut ne sont pas mesurées.
+- **Précision** : l'altitude de chaque marche est la moyenne de ses faces.
+  Tolérances de calcul : 0,5 mm pour la hauteur de marche et le giron, 5 mm
+  pour la largeur mesurée. Quand l'arrondi au centimètre rendrait la valeur
+  égale au seuil, le rapport l'écrit au millimètre.
 - **Essai sur des fichiers réels** : trois maquettes publiques exportées
   d'ArchiCAD (dépôt opensourceBIM/TestFiles : AC11-FZK-Haus, AC11-Institute,
   AC90R1-Jasmin-Sun). Leurs sept escaliers sont tournants (hélicoïdal, à trois
@@ -77,9 +82,14 @@ Les rapports suivent la numérotation du texte appliqué.
   par marche. Aucune volée droite réelle n'a encore servi d'essai.
 - **Largeur** : l'outil mesure la largeur de la volée, pas celle entre mains
   courantes, que le BIM ne donne pas. La seconde est au plus égale à la
-  première : une volée plus étroite que le minimum est non conforme à coup
-  sûr (majeure) ; une volée assez large reste à vérifier, les mains courantes
-  réduisant le passage.
+  première (y compris quand une seule main courante est admise) : une volée
+  plus étroite que le minimum ne peut pas offrir la largeur exigée (majeure) ;
+  une volée assez large reste à vérifier, les mains courantes réduisant le
+  passage. **Existant** : la conservation des caractéristiques initiales sans
+  travaux vaut pour tout le 1°, largeur comprise ; le rapport le rappelle à
+  chaque écart. Une largeur mesurée de moins de 0,60 m n'est pas retenue : la
+  géométrie ne porte sans doute pas les marches (limon seul, marches
+  modélisées à part) ; le rapport signale la largeur comme non contrôlée.
 - Escalier sans donnée exploitable : signalé dans les limites du rapport.
   Jusqu'à la 0.4.2, il était déclaré « bloquant », ce qui confondait une
   donnée manquante avec un obstacle.
