@@ -1626,12 +1626,20 @@ def ajouter_option_pdf(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def exporter_pdf_et_verifier(texte_md: str, sortie_md: Path) -> int:
-    """Écrit le PDF à côté du Markdown, le vérifie si veraPDF est installé.
+def chemins_de_sortie(demande: Path, pdf: bool) -> tuple[Path, Path]:
+    """(rapport Markdown, PDF). Si le chemin demandé finit par .pdf, c'est
+    celui du PDF, et le Markdown prend le même nom en .md."""
+    if pdf and demande.suffix.lower() == ".pdf":
+        return demande.with_suffix(".md"), demande
+    return demande, demande.with_suffix(".pdf")
 
-    Retourne 0, ou 1 si l'export est impossible ou si le PDF n'est pas conforme."""
+
+def exporter_pdf_et_verifier(texte_md: str, chemin_pdf: Path) -> int:
+    """Écrit le PDF et le vérifie si veraPDF est installé.
+
+    Retourne 0, ou 1 si l'export est impossible, si le PDF n'est pas conforme
+    ou si la vérification n'a pas pu se faire."""
     from pdf_accessible import exporter_pdf, verifier_pdf_ua
-    chemin_pdf = sortie_md.with_suffix(".pdf")
     try:
         exporter_pdf(texte_md, chemin_pdf)
     except RuntimeError as erreur:
@@ -1642,11 +1650,14 @@ def exporter_pdf_et_verifier(texte_md: str, sortie_md: Path) -> int:
     if verification is None:
         print("  Vérification PDF/UA-1 : veraPDF n'est pas installé, PDF non vérifié")
         return 0
-    conforme, detail = verification
-    if conforme:
+    statut, detail = verification
+    if statut == "conforme":
         print("  Vérification PDF/UA-1 (veraPDF) : conforme")
         return 0
-    print("  Vérification PDF/UA-1 (veraPDF) : NON conforme")
+    if statut == "non_conforme":
+        print("  Vérification PDF/UA-1 (veraPDF) : NON conforme")
+    else:
+        print("  Vérification PDF/UA-1 (veraPDF) : impossible, PDF non vérifié")
     print(detail)
     return 1
 
@@ -1676,8 +1687,9 @@ def main() -> int:
     rapport = auditer(str(chemin_ifc), ref)
     md = generer_rapport_markdown(rapport)
 
-    sortie = Path(args.sortie) if args.sortie else chemin_ifc.with_name(
-        chemin_ifc.stem + "_audit.md"
+    sortie, sortie_pdf = chemins_de_sortie(
+        Path(args.sortie) if args.sortie else chemin_ifc.with_name(chemin_ifc.stem + "_audit.md"),
+        args.pdf,
     )
     sortie.write_text(md, encoding="utf-8")
 
@@ -1687,7 +1699,7 @@ def main() -> int:
     print(f"  Taux de conformité : {_taux(rapport)}")
 
     if args.pdf:
-        return exporter_pdf_et_verifier(md, sortie)
+        return exporter_pdf_et_verifier(md, sortie_pdf)
     return 0
 
 

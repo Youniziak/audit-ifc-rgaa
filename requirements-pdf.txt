@@ -1,4 +1,6 @@
 # Export du rapport en PDF accessible (option --pdf)
-# Sur Termux, installer d'abord : pkg install pango python-pillow
-weasyprint>=62
+# Versions essayées : WeasyPrint 70, markdown 3.11.
+# Termux : non essayé. Pistes : pango, python-pillow et ttf-dejavu sont des
+# paquets Termux (pkg install) ; cffi n'en est pas un, pip devra le compiler.
+weasyprint>=70
 markdown>=3.4

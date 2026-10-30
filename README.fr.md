@@ -166,7 +166,19 @@ veraPDF, il le dit, et le PDF n'est pas déclaré conforme.
 La vérification automatique ne couvre pas tout PDF/UA : certains critères
 demandent un jugement humain (pertinence des titres, ordre de lecture voulu).
 Les rapports de l'outil n'ont ni image ni tableau, et se lisent dans l'ordre
-du Markdown. L'export n'a pas encore été essayé sur Termux.
+du Markdown. Une longue liste qui passe d'une page à l'autre (celle des
+limites, par exemple) devient deux listes dans le PDF : un lecteur d'écran
+annonce alors deux tailles de liste. Le PDF n'a pas de numéro de page :
+WeasyPrint ne le balise pas comme un artefact, et il se glisserait dans le
+texte pour qui lit dans l'ordre de la page.
+
+Sécurité : les noms d'éléments viennent du fichier IFC, qui peut venir d'un
+tiers. Le HTML qu'ils contiendraient est affiché tel quel, jamais interprété,
+et l'export ne va chercher aucun fichier ni aucune adresse.
+
+L'export n'a pas encore été essayé sur Termux. Pistes, non vérifiées :
+`pkg install pango python-pillow ttf-dejavu`, puis
+`pip install -r requirements-pdf.txt` (pip devra compiler cffi).
 
 ### 4. Régénérer le fichier IFC de test
 

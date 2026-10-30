@@ -64,7 +64,7 @@ except ImportError:
 
 from audit_ifc_rgaa import (
     _epaisseur_seuil, _ratio_de_pente, _valeur_typee, ajouter_choix_referentiel,
-    ajouter_option_pdf, exporter_pdf_et_verifier, lire_referentiel,
+    ajouter_option_pdf, chemins_de_sortie, exporter_pdf_et_verifier, lire_referentiel,
 )
 from referentiels import Referentiel
 
@@ -429,8 +429,9 @@ def main() -> int:
     audit_meta, ecarts = comparer(str(chemin_ifc), str(chemin_mes), ref)
     rapport_md = generer_rapport(audit_meta, ecarts, ref)
 
-    sortie_md = Path(args.sortie) if args.sortie else chemin_ifc.with_name(
-        chemin_ifc.stem + "_terrain.md"
+    sortie_md, sortie_pdf = chemins_de_sortie(
+        Path(args.sortie) if args.sortie else chemin_ifc.with_name(chemin_ifc.stem + "_terrain.md"),
+        args.pdf,
     )
     sortie_md.write_text(rapport_md, encoding="utf-8")
     print(f"Rapport Markdown : {sortie_md}")
@@ -449,7 +450,7 @@ def main() -> int:
     print(f"  Non-conformités réglementaires : {n_nc}")
 
     if args.pdf:
-        return exporter_pdf_et_verifier(rapport_md, sortie_md)
+        return exporter_pdf_et_verifier(rapport_md, sortie_pdf)
     return 0
 
 

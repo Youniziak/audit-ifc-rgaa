@@ -181,8 +181,19 @@ veraPDF, it says so, and the PDF is not declared compliant.
 
 Automated checking does not cover all of PDF/UA: some criteria need human
 judgement (meaningful headings, intended reading order). The tool's reports
-have no images or tables and read in Markdown order. The export has not yet
-been tried on Termux.
+have no images or tables and read in Markdown order. A long list that runs
+across a page break (the limits list, for instance) becomes two lists in
+the PDF, so a screen reader announces two list sizes. The PDF has no page
+numbers: WeasyPrint does not tag them as artifacts, and they would end up in
+the text for anyone reading in page order.
+
+Security: element names come from the IFC file, which may come from a third
+party. Any HTML they contain is shown as text, never interpreted, and the
+export fetches no file and no address.
+
+The export has not yet been tried on Termux. Untested leads:
+`pkg install pango python-pillow ttf-dejavu`, then
+`pip install -r requirements-pdf.txt` (pip will have to build cffi).
 
 ### 4. Regenerate the test IFC file
 

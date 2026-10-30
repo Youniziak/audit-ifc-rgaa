@@ -89,15 +89,70 @@ def test_polices_incorporees(pdf):
                     police.get("/BaseFont")
 
 
-@pytest.mark.skipif(not shutil.which("verapdf"), reason="veraPDF n'est pas installé")
+SANS_VERAPDF = pytest.mark.skipif(not shutil.which("verapdf"), reason="veraPDF n'est pas installé")
+
+
+@SANS_VERAPDF
 def test_conforme_pdf_ua_1_selon_verapdf(pdf, tmp_path):
-    conforme, detail = verifier_pdf_ua(pdf)
-    assert conforme, detail
+    statut, detail = verifier_pdf_ua(pdf)
+    assert statut == "conforme", detail
     # Et la vérification sait dire non : un PDF non balisé échoue.
     from weasyprint import HTML
     non_balise = tmp_path / "non_balise.pdf"
     HTML(string="<html><body><h1>Titre</h1></body></html>").write_pdf(str(non_balise))
-    assert verifier_pdf_ua(non_balise)[0] is False
+    assert verifier_pdf_ua(non_balise)[0] == "non_conforme"
+
+
+@SANS_VERAPDF
+def test_verification_impossible(tmp_path):
+    # Un fichier qui n'est pas un PDF, ou absent : ni conforme ni non conforme.
+    faux = tmp_path / "FAILLES" / "pas_un_pdf.pdf"
+    faux.parent.mkdir()
+    faux.write_text("ceci n'est pas un PDF", encoding="utf-8")
+    assert verifier_pdf_ua(faux)[0] == "impossible"
+    assert verifier_pdf_ua(tmp_path / "absent.pdf")[0] == "impossible"
+
+
+def test_html_des_noms_echappe_et_aucune_ressource_chargee(tmp_path):
+    # Les noms viennent de l'IFC, qui peut venir d'un tiers : un nom piégé ne
+    # doit ni disparaître, ni glisser un fichier local dans le PDF.
+    secret = tmp_path / "secret.txt"
+    secret.write_text("NE PAS DIVULGUER", encoding="utf-8")
+    texte = (
+        "# Rapport\n\n"
+        "#### 1. Porte <entrée> & sortie\n\n"
+        f'- **Nom** : Porte hall<link rel="attachment" href="file://{secret}">\n'
+        f'- **Image** : <img src="file://{secret}" alt="x">\n'
+    )
+    document = markdown_vers_html(texte)
+    assert "Porte &lt;entrée&gt; &amp; sortie" in document
+    assert "<link rel" not in document and "<img" not in document
+    chemin = exporter_pdf(texte, tmp_path / "piege.pdf")
+    with pikepdf.open(chemin) as pdf_piege:
+        assert "/EmbeddedFiles" not in pdf_piege.Root.get("/Names", {})
+        assert not any("/Annots" in page and any(
+            a.get("/Subtype") == "/FileAttachment" for a in page.Annots) for page in pdf_piege.pages)
+    assert b"NE PAS DIVULGUER" not in chemin.read_bytes()
+
+
+@pytest.mark.skipif(not shutil.which("pdftotext"), reason="pdftotext n'est pas installé")
+def test_pas_de_pied_de_page_hors_structure(pdf):
+    # Un pied de page « Page 1 sur 3 » non balisé se glisserait au milieu des
+    # listes pour qui lit le texte dans l'ordre de la page.
+    texte = subprocess.run(["pdftotext", str(pdf), "-"], capture_output=True, text=True).stdout
+    assert "Page 1 sur" not in texte
+
+
+def test_sortie_demandee_en_pdf(tmp_path):
+    # « -o rapport.pdf » : le PDF va là, le Markdown à côté, sans s'écraser.
+    resultat = subprocess.run(
+        [sys.executable, "audit_ifc_rgaa.py", "exemples/test_erp_avec_espaces.ifc",
+         "--neuf", "--pdf", "-o", str(tmp_path / "rapport.pdf")],
+        cwd=RACINE, capture_output=True, text=True,
+    )
+    assert resultat.returncode == 0, resultat.stderr
+    assert (tmp_path / "rapport.pdf").read_bytes().startswith(b"%PDF")
+    assert (tmp_path / "rapport.md").read_text(encoding="utf-8").startswith("# Rapport")
 
 
 def test_ligne_de_commande(tmp_path):
