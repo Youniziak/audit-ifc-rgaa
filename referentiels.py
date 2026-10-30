@@ -69,8 +69,22 @@ class Referentiel:
     manoeuvre_porte_pousser: float   # longueur côté où l'on pousse la porte
     manoeuvre_porte_tirer: float     # longueur côté où l'on tire la porte
 
+    # Ascenseurs et élévateurs — article 7.2 (2014) ou 7-2 (2017), annexe 1
+    gabarit_fauteuil_largeur: float     # fauteuil roulant occupé (annexe 1)
+    gabarit_fauteuil_longueur: float
+    elevateur_largeur: float            # plate-forme, service simple ou opposé
+    elevateur_largeur_angle: float      # plate-forme, service en angle
+    elevateur_longueur: float
+
+    # Ce que le texte dit d'un élévateur face à l'obligation d'ascenseur
+    note_elevateur: str = ""
+
     # Remarque propre au texte, ajoutée aux exigences sur les escaliers
     note_escalier: Optional[str] = None
+
+    # Exception propre au texte pour les ascenseurs. Quand elle existe, une
+    # cabine trop petite n'est plus « bloquante » mais « majeure, à vérifier ».
+    note_ascenseur: Optional[str] = None
 
     def article(self, numero: str) -> str:
         """Référence d'article lisible, ex. « Art. 10 — arrêté du 20 avril 2017 »."""
@@ -99,6 +113,15 @@ NEUF = Referentiel(
     espace_usage_longueur=1.30,
     manoeuvre_porte_pousser=1.70,
     manoeuvre_porte_tirer=2.20,
+    gabarit_fauteuil_largeur=0.75,
+    gabarit_fauteuil_longueur=1.25,
+    elevateur_largeur=0.90,
+    elevateur_largeur_angle=1.10,
+    elevateur_longueur=1.40,
+    note_elevateur=(
+        "L'article 7-2 (3° a) admet un élévateur à l'intérieur d'un établissement, "
+        "sans dire s'il peut tenir lieu d'ascenseur obligatoire : à vérifier"
+    ),
 )
 
 EXISTANT = Referentiel(
@@ -123,6 +146,23 @@ EXISTANT = Referentiel(
     espace_usage_longueur=1.30,
     manoeuvre_porte_pousser=1.70,
     manoeuvre_porte_tirer=2.20,
+    gabarit_fauteuil_largeur=0.75,
+    gabarit_fauteuil_longueur=1.25,
+    elevateur_largeur=0.90,
+    elevateur_largeur_angle=1.10,
+    elevateur_longueur=1.40,
+    note_elevateur=(
+        "L'article 7.2 (point 4) admet un élévateur à la place d'un ascenseur à "
+        "l'intérieur d'un établissement situé dans un cadre bâti existant, pour une "
+        "hauteur de course de 3,20 m au plus ; hors de ces cas, une dérogation est "
+        "nécessaire"
+    ),
+    note_ascenseur=(
+        "Le texte admet une exception : lorsque des éléments participant à la "
+        "solidité du bâtiment empêchent d'appliquer ces exigences, au moins un "
+        "ascenseur par batterie respecte des exigences de signalisation (7.2, "
+        "point 3). Contraintes de structure à vérifier."
+    ),
     note_escalier=(
         "En l'absence de travaux changeant les caractéristiques dimensionnelles "
         "de l'escalier, ses caractéristiques initiales peuvent être conservées."
@@ -130,6 +170,14 @@ EXISTANT = Referentiel(
 )
 
 REFERENTIELS: dict[str, Referentiel] = {r.code: r for r in (NEUF, EXISTANT)}
+
+# Cabine d'ascenseur de type 1 de la norme NF EN 81-70:2003 (largeur ×
+# profondeur, tableau 1 de la norme), la plus petite qu'elle prévoit pour un
+# fauteuil roulant. Ce chiffre n'est pas dans les arrêtés : les deux disent
+# seulement que cette norme, dans son édition de 2003, est « réputée
+# satisfaire » à leurs exigences. L'outil s'en sert comme repère « à
+# vérifier », jamais comme minimum réglementaire.
+CABINE_NF_EN_81_70_TYPE_1 = (1.00, 1.25)
 
 
 def referentiel(code: str) -> Referentiel:
