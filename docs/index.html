@@ -107,6 +107,11 @@
     display: flex; align-items: center; justify-content: space-between;
     gap: 1rem; min-height: 3.9rem; padding-block: 0.45rem;
   }
+  /* La rangée de badges reste une grille (2 colonnes sur téléphone) */
+  .site-header .wrap.specs-row {
+    display: grid; justify-content: start; align-items: start;
+    min-height: 0; padding-block: 0 0.85rem;
+  }
   .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 0.12rem; text-decoration: none; color: var(--ink); flex-shrink: 0; }
   .brand .signature { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
   .brand .brand-line { display: flex; align-items: baseline; gap: 0.55rem; }
@@ -183,7 +188,7 @@
   .hero h1 { margin: 0; }
   .hero h1 .really {
     display: flex; justify-content: space-between; align-items: baseline; gap: 0.3em;
-    font-size: clamp(4rem, 2rem + 16vw, 13rem);
+    font-size: clamp(3rem, 0.5rem + 15.5vw, 13rem);
     font-weight: 800; letter-spacing: -0.045em; line-height: 0.86;
     color: var(--amber);
     margin: clamp(0.5rem, 2vw, 1rem) 0 0;
@@ -259,8 +264,11 @@
   .bp-el { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); margin: 0 0 0.15rem; }
   .bp-crit { margin: 0 0 0.6rem; font-size: 0.98rem; color: rgba(255,255,255,.82); }
   .bp-val { margin: auto 0 0; font-family: var(--font-mono); font-weight: 700; font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.1rem); letter-spacing: -0.01em; color: #fff; }
+  .bp-val + .bp-val { margin-top: 0.2rem; }
+  .bp-tag { display: inline-block; min-width: 6.8em; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); vertical-align: middle; }
   .note { margin-top: 1.75rem; font-size: 0.98rem; max-width: 48rem; padding-left: 1rem; border-left: 3px solid var(--amber); }
   .print .note { color: rgba(255,255,255,.85); }
+  .print .note a { color: #fff; }
   .on-dark .note { color: var(--paper-soft); border-left-color: var(--amber); }
   section:not(.print):not(.on-dark) .note { color: var(--ink-soft); border-left-color: var(--blue); }
 
@@ -362,7 +370,7 @@
   <div class="wrap specs-row" aria-label="Spécifications du projet">
     <span class="spec-pill spec-pill--accent" aria-label="IFC, norme ISO 16739">IFC / ISO 16739</span>
     <span class="spec-pill">Export BCF 2.1</span>
-    <span class="spec-pill" aria-label="Arrêté du 8 décembre 2014">Arrêté du 8 déc. 2014</span>
+    <span class="spec-pill" aria-label="Arrêtés du 20 avril 2017 et du 8 décembre 2014">Arrêtés 2017 et 2014</span>
     <span class="spec-pill">Code GPL-3.0</span>
     <span class="spec-pill">Matériel CERN-OHL-P v2</span>
     <span class="spec-pill">Blind-first</span>
@@ -447,10 +455,10 @@
       <div class="sec-head">
         <p class="eyebrow" aria-hidden="true"><span class="num">02</span> Seuils vérifiés</p>
         <h2 id="t-seuils" aria-label="Partie 2, Seuils vérifiés. Six critères dimensionnels, extraits du modèle.">Six critères dimensionnels, extraits du modèle</h2>
-        <p class="lede">Chaque valeur est lue dans le fichier IFC et comparée au référentiel en vigueur.</p>
+        <p class="lede">Chaque valeur est lue dans le fichier IFC et comparée au texte choisi par l'auditeur : ERP neuf ou ERP existant.</p>
       </div>
       <ul class="bp-grid">
-        <li tabindex="0" aria-label="Critère : portes. Largeur de passage, minimum 0,80 mètre.">
+        <li tabindex="0" aria-label="Critère : portes. Largeur de la porte principale : minimum 0,90 mètre pour un ERP neuf, 0,80 mètre pour un ERP existant.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <line class="obj" x1="20" y1="142" x2="220" y2="142"/>
             <rect class="faint" x="80" y="44" width="80" height="98"/>
@@ -462,11 +470,12 @@
           </svg>
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Portes</p>
-            <p class="bp-crit">Largeur de passage</p>
-            <p class="bp-val">≥ 0,80 m</p>
+            <p class="bp-crit">Largeur de porte principale</p>
+            <p class="bp-val"><span class="bp-tag">Neuf</span> ≥ 0,90 m</p>
+            <p class="bp-val"><span class="bp-tag">Existant</span> ≥ 0,80 m</p>
           </div>
         </li>
-        <li tabindex="0" aria-label="Critère : escalier. Giron, c'est-à-dire la profondeur de marche, minimum 0,28 mètre.">
+        <li tabindex="0" aria-label="Critère : escalier. Giron, c'est-à-dire la profondeur de marche, minimum 0,28 mètre, pour un ERP neuf comme existant.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <polyline class="obj" points="36,142 92,142 92,110 148,110 148,78 204,78 204,46"/>
             <line class="cote" x1="92" y1="124" x2="148" y2="124"/>
@@ -476,10 +485,10 @@
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Escalier</p>
             <p class="bp-crit">Giron (profondeur de marche)</p>
-            <p class="bp-val">≥ 0,28 m</p>
+            <p class="bp-val"><span class="bp-tag">Les deux</span> ≥ 0,28 m</p>
           </div>
         </li>
-        <li tabindex="0" aria-label="Critère : escalier. Hauteur de marche, maximum 0,16 mètre.">
+        <li tabindex="0" aria-label="Critère : escalier. Hauteur de marche, maximum 0,16 mètre pour un ERP neuf, 0,17 mètre pour un ERP existant.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <polyline class="obj" points="36,142 92,142 92,110 148,110 148,78 204,78 204,46"/>
             <line class="cote" x1="134" y1="78" x2="134" y2="110"/>
@@ -489,10 +498,11 @@
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Escalier</p>
             <p class="bp-crit">Hauteur de marche</p>
-            <p class="bp-val">≤ 0,16 m</p>
+            <p class="bp-val"><span class="bp-tag">Neuf</span> ≤ 0,16 m</p>
+            <p class="bp-val"><span class="bp-tag">Existant</span> ≤ 0,17 m</p>
           </div>
         </li>
-        <li tabindex="0" aria-label="Critère : rampe. Pente maximale, 5 pour cent.">
+        <li tabindex="0" aria-label="Critère : rampe. Pente maximale, 5 pour cent pour un ERP neuf, 6 pour cent pour un ERP existant, avec des tolérances sur de courtes longueurs.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <line class="obj" x1="30" y1="130" x2="210" y2="130"/>
             <polygon class="faint" points="30,130 210,130 210,104"/>
@@ -501,10 +511,11 @@
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Rampe</p>
             <p class="bp-crit">Pente maximale</p>
-            <p class="bp-val">≤ 5 %</p>
+            <p class="bp-val"><span class="bp-tag">Neuf</span> ≤ 5 %</p>
+            <p class="bp-val"><span class="bp-tag">Existant</span> ≤ 6 %</p>
           </div>
         </li>
-        <li tabindex="0" aria-label="Critère : couloir. Largeur de circulation, minimum 1,40 mètre.">
+        <li tabindex="0" aria-label="Critère : couloir. Largeur de circulation, minimum 1,40 mètre pour un ERP neuf, 1,20 mètre pour un ERP existant.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <line class="obj" x1="30" y1="48" x2="210" y2="48"/>
             <line class="obj" x1="30" y1="112" x2="210" y2="112"/>
@@ -515,10 +526,11 @@
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Couloir</p>
             <p class="bp-crit">Largeur de circulation</p>
-            <p class="bp-val">≥ 1,40 m</p>
+            <p class="bp-val"><span class="bp-tag">Neuf</span> ≥ 1,40 m</p>
+            <p class="bp-val"><span class="bp-tag">Existant</span> ≥ 1,20 m</p>
           </div>
         </li>
-        <li tabindex="0" aria-label="Critère : espace de manœuvre. Rotation d'un fauteuil roulant, diamètre 1,50 mètre.">
+        <li tabindex="0" aria-label="Critère : espace de manœuvre. Demi-tour d'un fauteuil roulant, diamètre 1,50 mètre, pour un ERP neuf comme existant.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <circle class="faint" cx="120" cy="80" r="50"/>
             <line class="cote" x1="70" y1="80" x2="170" y2="80"/>
@@ -527,13 +539,13 @@
           </svg>
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Manœuvre</p>
-            <p class="bp-crit">Rotation fauteuil</p>
-            <p class="bp-val">Ø 1,50 m</p>
+            <p class="bp-crit">Demi-tour fauteuil</p>
+            <p class="bp-val"><span class="bp-tag">Les deux</span> Ø 1,50 m</p>
           </div>
         </li>
       </ul>
       <p class="note">
-        Référentiel actuel : <strong>arrêté du 8 décembre 2014</strong> (France). L'architecture du pipeline est conçue pour accueillir d'autres référentiels nationaux. Les seuils sont des paramètres, pas des constantes.
+        Deux textes, au choix de l'auditeur à chaque audit : <strong>arrêté du 20 avril 2017</strong> (ERP neufs) et <strong>arrêté du 8 décembre 2014</strong> (ERP existants). Chaque seuil est sourcé, article par article, dans <a href="https://github.com/Youniziak/audit-ifc-rgaa/blob/main/REFERENTIEL.md">REFERENTIEL.md</a>. L'architecture du pipeline est conçue pour accueillir d'autres référentiels nationaux : les seuils sont des paramètres, pas des constantes.
       </p>
     </div>
   </section>

@@ -38,8 +38,11 @@ confronter à la réalité.
 ### Volet logiciel — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`
 
 - Parse le fichier IFC d'un projet
-- Vérifie automatiquement la conformité aux exigences de **l'arrêté du
-  8 décembre 2014** (portes, escaliers, rampes, couloirs, sanitaires)
+- Vérifie automatiquement la conformité aux exigences du texte applicable,
+  que l'auditeur choisit à chaque audit : **arrêté du 20 avril 2017** (ERP
+  neufs) ou **arrêté du 8 décembre 2014** (ERP existants) — portes,
+  escaliers, rampes, couloirs, sanitaires. Chaque seuil est sourcé dans
+  [REFERENTIEL.md](REFERENTIEL.md)
 - Génère un **rapport Markdown structuré** lisible par lecteur d'écran
 - Compare les valeurs déclarées aux **mesures terrain** (fichier JSON)
 - Exporte les écarts au format **BCF 2.1** standard, échangeable avec
@@ -72,7 +75,7 @@ tactile), interface visuelle secondaire mais présente.
                                    ▼
         ┌─────────────────────────────────────────────────────────────┐
         │  audit_ifc_rgaa.py                                          │
-        │  Audit géométrique automatisé contre l'arrêté 8 déc 2014    │
+        │  Audit géométrique contre le texte choisi (neuf/existant)   │
         └──────────────────────────┬──────────────────────────────────┘
                                    │
                                    ▼
@@ -118,10 +121,14 @@ Dépendance unique : [IfcOpenShell](https://ifcopenshell.org/) (LGPL).
 
 ## Utilisation rapide
 
+Chaque commande demande le texte applicable : `--neuf` (arrêté du
+20 avril 2017) ou `--existant` (arrêté du 8 décembre 2014). Sans l'une des
+deux options, l'outil s'arrête et le demande.
+
 ### 1. Audit conformité depuis le BIM seul
 
 ```bash
-python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc
+python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc --existant
 ```
 
 Génère `exemples/test_erp_avec_espaces_audit.md` listant toutes les
@@ -132,7 +139,7 @@ non-conformités détectées avec sévérité et article réglementaire.
 ```bash
 python3 comparaison_terrain.py exemples/test_house.ifc \
                                exemples/mesures_exemple.json \
-                               --bcf retours_architecte.bcfzip
+                               --neuf --bcf retours_architecte.bcfzip
 ```
 
 Produit le rapport d'écarts en Markdown et un fichier `.bcfzip` à
@@ -144,18 +151,27 @@ transmettre directement à l'architecte.
 python3 generer_exemple_espaces.py
 ```
 
-## Ce qui est vérifié (v0.3)
+### 4. Lancer les tests
 
-| Élément | Contrôle | Article |
-|---------|----------|---------|
-| Portes | Largeur ≥ 0,80 m (locaux) ou 0,90 m (principale ERP) | Art. 10 |
-| Portes | Hauteur libre ≥ 2,00 m | Art. 10 |
-| Escaliers | Giron ≥ 0,28 m | Art. 7-1 |
-| Escaliers | Hauteur de marche ≤ 0,16 m | Art. 7-1 |
-| Rampes | Pente ≤ 5 % normale, 8 % tolérée sur 2 m | Art. 7-2 |
-| Couloirs | Largeur ≥ 1,40 m (1,20 m en rétrécissement ponctuel) | Art. 6 |
-| Sanitaires | Plus petite dimension ≥ 1,50 m (rotation Ø 1,50 m) | Art. 12 |
-| Sanitaires | Surface ≥ 3,00 m² (recommandation) | Art. 12 |
+```bash
+pip install pytest
+python3 -m pytest tests/
+```
+
+## Ce qui est vérifié (v0.3.1)
+
+Seuils « neuf » (arrêté du 20 avril 2017) puis « existant » (arrêté du
+8 décembre 2014). Le détail et les sources sont dans
+[REFERENTIEL.md](REFERENTIEL.md).
+
+| Élément | Neuf | Existant | Article |
+|---------|------|----------|---------|
+| Portes, largeur | 0,90 m (0,80 m pour sanitaires et cabines non adaptés) | 0,80 m | Art. 10 |
+| Escaliers, giron | 0,28 m au moins | 0,28 m au moins | Art. 7-1 (neuf), 7.1 (existant) |
+| Escaliers, hauteur de marche | 0,16 m au plus | 0,17 m au plus | Art. 7-1 (neuf), 7.1 (existant) |
+| Rampes, pente | 5 % ; 8 % sur 2 m ; 10 % sur 0,50 m | 6 % ; 10 % sur 2 m ; 12 % sur 0,50 m | Art. 2, repris par l'art. 6 |
+| Couloirs, largeur | 1,40 m (1,20 m en rétrécissement ponctuel) | 1,20 m (0,90 m en rétrécissement ponctuel) | Art. 6, renvoi à l'art. 2 |
+| Sanitaires, demi-tour | Ø 1,50 m, dedans ou à défaut devant la porte | Ø 1,50 m, dedans ou à défaut devant la porte | Art. 12 et annexe 2 |
 
 ## Ce qui n'est pas (encore) vérifié
 
@@ -177,14 +193,18 @@ automatisé* de chaque rapport généré.
 audit-ifc-rgaa/
 ├── README.md                    Ce document
 ├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.3.0)
+├── VERSION                      Version courante (0.3.1)
+├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
 ├── LICENSE                      GPL-3.0 pour le code
 ├── requirements.txt             Dépendances Python
 │
 ├── audit_ifc_rgaa.py            Module principal — audit conformité IFC
+├── referentiels.py              Seuils des deux textes (neuf / existant)
 ├── comparaison_terrain.py       Comparaison BIM ↔ mesures terrain
 ├── bcf_export.py                Génération de fichiers BCF 2.1
 ├── generer_exemple_espaces.py   Helper de génération d'IFC de test
+│
+├── tests/                       Tests (python3 -m pytest tests/)
 │
 ├── exemples/                    Fichiers de démonstration
 │   ├── test_house.ifc           Maison simple (1 porte)
@@ -225,6 +245,7 @@ Standards utilisés :
 - [x] **v0.1** — Audit géométrique de base : portes, escaliers, rampes
 - [x] **v0.2** — Circulations horizontales et sanitaires accessibles
 - [x] **v0.3** — Comparaison BIM ↔ terrain + export BCF 2.1
+- [x] **v0.3.1** — Choix du texte applicable (neuf ou existant), seuils sourcés, tests
 - [ ] **v0.4** — Espaces de manœuvre, ascenseurs accessibles
 - [ ] **v0.5** — Export PDF accessible (PDF/UA, ISO 14289)
 - [ ] **v0.6** — Génération automatique de plans tactiles (STL)
@@ -263,7 +284,7 @@ public d'accessibilité, attestations de conformité signées).
   title   = {audit-ifc-rgaa : pipeline ouvert d'audit d'accessibilité
              du bâti depuis le BIM},
   year    = {2026},
-  version = {0.3.0},
+  version = {0.3.1},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }

@@ -9,8 +9,11 @@
 
 ## Le problème adressé
 
-Vérifier qu'une rampe respecte les **5 % de pente maximum en usage normal**
-(8 % toléré sur 2 m, 10 % toléré sur 0,50 m) nécessite un inclinomètre.
+Vérifier qu'une rampe respecte la pente maximale nécessite un inclinomètre :
+**5 %** pour un ERP neuf (8 % toléré sur 2 m, 10 % sur 0,50 m — arrêté du
+20 avril 2017), **6 %** pour un ERP existant (10 % toléré sur 2 m, 12 % sur
+0,50 m — arrêté du 8 décembre 2014). Détail et sources :
+[REFERENTIEL.md](../../REFERENTIEL.md).
 Les inclinomètres parlants industriels existent mais sont rares et coûteux
 (150–300 €). Les inclinomètres standards affichent un chiffre à l'écran,
 inutilisable seul en DV.
@@ -121,9 +124,11 @@ Calibration avancée pour mesures précises (mode chantier) :
 3. Il fait glisser l'inclinomètre le long de la rampe ou le déplace par
    pas de 50 cm
 4. L'inclinomètre annonce continuellement la pente et émet un son distinct
-   à chaque dépassement de 5 % et de 8 %
+   à chaque seuil du texte choisi (ERP neuf : 5 % et 8 % ; ERP existant :
+   6 % et 10 %)
 5. À la fin, double-clic → annonce *"Pente moyenne 6,2 pourcent, maximum
-   7,8 pourcent, non conforme arrêté 8 décembre 2014, données enregistrées"*
+   7,8 pourcent, au-delà de 5 pourcent, toléré sur 2 mètres au plus,
+   arrêté du 20 avril 2017, données enregistrées"*
 6. Connexion USB → export JSON pour `comparaison_terrain.py`
 
 ## Itérations à valider

@@ -78,6 +78,9 @@ def _make_markup_xml(ecart, audit_meta: dict) -> tuple[str, bytes]:
     if ecart.statut_reglementaire == "non_conforme":
         priority = "Critical"
         topic_type = "Non-conformité réglementaire"
+    elif ecart.statut_reglementaire == "a_verifier":
+        priority = "High"
+        topic_type = "À vérifier (tolérance réglementaire)"
     elif ecart.statut_bim_terrain == "ecart_significatif":
         priority = "High"
         topic_type = "Écart BIM/terrain significatif"

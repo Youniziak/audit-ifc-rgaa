@@ -8,10 +8,11 @@ par l'auteur d'IfcOpenShell sous licence libre.
 
 Schéma IFC4. Contient une porte, des fenêtres, des murs, des dalles.
 
-Pour tester l'outil :
+Pour tester l'outil, depuis la racine du dépôt (choisir le texte applicable :
+`--neuf` ou `--existant`) :
 
 ```bash
-python3 ../audit_ifc_rgaa.py exemples/test_house.ifc
+python3 audit_ifc_rgaa.py exemples/test_house.ifc --neuf
 ```
 
 ## Où trouver d'autres fichiers IFC publics ?

@@ -6,4 +6,7 @@ __pycache__/
 venv/
 .env
 *_audit.md
+*_terrain.md
+*.bcfzip
+.pytest_cache/
 test_house_non_conforme.ifc

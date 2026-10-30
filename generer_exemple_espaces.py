@@ -175,10 +175,11 @@ def main():
     model.write(sortie)
     print(f"Fichier généré : {sortie}")
     print("Contient :")
-    print("  - Couloir RDC (1.10 m) → NON CONFORME (< 1.20 m)")
-    print("  - Couloir hall (1.50 m) → CONFORME")
-    print("  - WC standard (1.20 × 2.00 m) → NON CONFORME (rotation Ø 1.50 impossible)")
-    print("  - WC PMR (1.80 × 2.20 m) → CONFORME")
+    print("  - Couloir RDC (1,10 m) → --neuf : bloquant (< 1,20 m) ;")
+    print("    --existant : à vérifier (admis seulement en rétrécissement ponctuel)")
+    print("  - Couloir hall (1,50 m) → conforme avec les deux textes")
+    print("  - WC standard (1,20 × 2,00 m) → demi-tour Ø 1,50 m impossible à l'intérieur : à vérifier")
+    print("  - WC PMR (1,80 × 2,20 m) → conforme avec les deux textes")
 
 
 if __name__ == "__main__":
