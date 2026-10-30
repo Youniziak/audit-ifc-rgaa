@@ -5,6 +5,50 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.6.0] — 2026-10-30
+
+### Ajouté
+
+- **Plan tactile en relief** : `plan_tactile.py` écrit un fichier STL par
+  niveau, à imprimer en 3D, et une légende en Markdown (ou en PDF accessible
+  avec `--pdf`). Coupe à 0,50 m du sol : murs en relief de 3 mm, fenêtres et
+  garde-corps à 1,5 mm, portes ouvertes dans le mur, triangle devant les
+  portes vers l'extérieur, escaliers en stries parallèles aux marches,
+  rampes en plan incliné plus haut du côté où elles montent, ascenseurs en
+  plateau, numéros des locaux en braille français intégral, titre, flèche du
+  nord et barre d'échelle. Coin coupé en haut à gauche.
+- Avec `--neuf` ou `--existant`, l'audit est lancé et chaque élément non
+  conforme reçoit un dôme ; la légende donne ses constats, dans l'ordre où la
+  main rencontre les dômes.
+- Échelle choisie pour que le niveau tienne sur la plaque (`--plateau`,
+  200 × 200 mm par défaut), ou imposée (`--echelle`), le niveau étant alors
+  coupé en parties. La légende conseille une échelle quand trop de locaux
+  n'ont pas pu recevoir leur numéro.
+- **Éprouvette** (`--eprouvette`) : plaque d'essai des hauteurs de murs,
+  passages, points braille et stries, à toucher avant le premier plan ;
+  `--hauteur-murs` et `--hauteur-points` règlent ensuite le plan.
+- `PLAN_TACTILE.md` : ce qui est dessiné, chaque dimension avec sa source
+  (ISO 17049, ISO 19028, BANA, UKAAF, étude de Kaplan et Pyayt) et ce qui
+  reste à valider en touchant une plaque.
+- `requirements-plan.txt` (manifold3d, shapely, numpy) ; tests
+  `tests/test_plan_tactile.py`, braille comparé à liblouis.
+
+### Essais sur des maquettes réelles
+
+- Huit maquettes publiques (Revit, ArchiCAD ; IFC2X3 et IFC4), 31 plaques,
+  toutes fermées ; trois découpées par PrusaSlicer 2.7.2 sans erreur
+  (3 h 15 à 6 h, 23 à 38 g de PLA en couches de 0,12 mm).
+- Erreurs trouvées et corrigées en route : fenêtres sans géométrie qui
+  laissaient des trous pareils à des portes ; triangles d'entrée sur des
+  portes de sas que Revit dit extérieures ; poteaux réduits à des picots
+  pareils à du braille ; sens de montée en diagonale sur des volées droites ;
+  arêtes partagées par quatre faces là où deux reliefs se touchaient.
+
+### Pas encore fait
+
+- Aucune plaque n'a encore été imprimée ni lue par une personne aveugle : les
+  hauteurs marquées « à valider » le restent.
+
 ## [0.5.0] — 2026-10-30
 
 ### Ajouté
