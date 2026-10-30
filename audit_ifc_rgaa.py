@@ -182,9 +182,9 @@ def auditer_portes(ifc_file, scale: float, rapport: RapportAudit) -> None:
 
 
 def auditer_escaliers(ifc_file, scale: float, rapport: RapportAudit) -> None:
-    """Vérifie la hauteur des marches et le giron (article 7.1)."""
+    """Vérifie la hauteur des marches et le giron (article 7.1 ou 7-1)."""
     ref = rapport.referentiel
-    article = ref.article("7.1")
+    article = ref.article(ref.art_escaliers)
     note = f" {ref.note_escalier}" if ref.note_escalier else ""
     escaliers = ifc_file.by_type("IfcStair")
     rapport.elements_audites["Escaliers"] = len(escaliers)

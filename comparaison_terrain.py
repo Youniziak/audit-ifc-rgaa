@@ -170,13 +170,13 @@ def evaluer_conformite_reglementaire(
         return "conforme", article
 
     if "stair" in et and pr in ("treadlength", "giron"):
-        article = ref.article("7.1")
+        article = ref.article(ref.art_escaliers)
         if valeur_mesuree < ref.escalier_giron_min:
             return "non_conforme", article
         return "conforme", article
 
     if "stair" in et and pr in ("riserheight", "hauteurmarche"):
-        article = ref.article("7.1")
+        article = ref.article(ref.art_escaliers)
         if valeur_mesuree > ref.escalier_hauteur_marche_max:
             return "non_conforme", article
         return "conforme", article

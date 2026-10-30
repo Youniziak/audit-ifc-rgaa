@@ -40,7 +40,11 @@ des 100 personnes ou plus figure dans les limites de chaque rapport.
 **Hauteur de porte** : aucun des deux textes n'en fixe. L'outil ne la contrôle
 plus (retiré en 0.3.1).
 
-## Escaliers — article 7.1
+## Escaliers — article 7-1 (neuf) ou 7.1 (existant)
+
+Sur Légifrance, l'arrêté de 2017 fait des escaliers un article distinct
+(« Article 7-1 ») ; celui de 2014 les range dans l'article 7, au point 7.1.
+Les rapports suivent la numérotation du texte appliqué.
 
 - **Neuf** : hauteur de marche de 16 cm au plus, giron de 28 cm au moins.
 - **Existant** : hauteur de marche de 17 cm au plus, giron de 28 cm au moins.
@@ -63,8 +67,8 @@ incliné. Une pente au-delà de toute tolérance est bloquante ; une pente
 comprise dans les tolérances est majeure, avec la longueur à vérifier.
 
 Les pentes relèvent de l'article 2 (cheminements extérieurs), que l'article 6
-applique aux circulations intérieures. L'article 7.2 porte sur les ascenseurs :
-les versions 0.1 à 0.3 le citaient à tort pour les rampes.
+applique aux circulations intérieures. L'article 7.2 (7-2 pour le neuf) porte
+sur les ascenseurs : les versions 0.1 à 0.3 le citaient à tort pour les rampes.
 
 ## Circulations horizontales — article 6, qui renvoie à l'article 2
 
@@ -107,3 +111,4 @@ que la version 0.4 contrôlera :
 - [Arrêté du 8 décembre 2014, article 7 (escaliers et ascenseurs)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034797421)
 - [Arrêté du 8 décembre 2014, annexe 2 (espaces de manœuvre)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034797441)
 - [Arrêté du 20 avril 2017, texte consolidé](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000034485459/)
+- [Arrêté du 20 avril 2017, article 7-1 (escaliers)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034485956)

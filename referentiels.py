@@ -36,12 +36,18 @@ class Referentiel:
     abrege: str          # forme courte, pour les références d'article
     url: str             # texte consolidé sur Légifrance
 
+    # Numérotation propre à chaque texte : sur Légifrance, l'arrêté de 2014
+    # range escaliers et ascenseurs dans l'article 7 (7.1, 7.2) ; celui de
+    # 2017 en fait des articles distincts (7-1, 7-2).
+    art_escaliers: str
+    art_ascenseurs: str
+
     # Portes — article 10
     porte_largeur_min: float              # en dessous, aucune porte n'est admise
     porte_principale_largeur_min: float   # porte principale, local de moins de 100 personnes
     porte_principale_100_utile_min: float  # passage utile, local de 100 personnes ou plus
 
-    # Escaliers — article 7.1
+    # Escaliers — article 7.1 (2014) ou 7-1 (2017)
     escalier_hauteur_marche_max: float
     escalier_giron_min: float
 
@@ -63,7 +69,7 @@ class Referentiel:
     note_escalier: Optional[str] = None
 
     def article(self, numero: str) -> str:
-        """Référence d'article lisible, ex. « Art. 7.1 — arrêté du 20 avril 2017 »."""
+        """Référence d'article lisible, ex. « Art. 10 — arrêté du 20 avril 2017 »."""
         return f"Art. {numero} — {self.abrege}"
 
 
@@ -72,6 +78,8 @@ NEUF = Referentiel(
     titre="arrêté du 20 avril 2017 — accessibilité des ERP neufs",
     abrege="arrêté du 20 avril 2017",
     url="https://www.legifrance.gouv.fr/loda/id/JORFTEXT000034485459/",
+    art_escaliers="7-1",
+    art_ascenseurs="7-2",
     porte_largeur_min=0.80,
     porte_principale_largeur_min=0.90,
     porte_principale_100_utile_min=1.40,
@@ -92,6 +100,8 @@ EXISTANT = Referentiel(
     titre="arrêté du 8 décembre 2014 — accessibilité des ERP existants",
     abrege="arrêté du 8 décembre 2014",
     url="https://www.legifrance.gouv.fr/loda/id/JORFTEXT000029893131/",
+    art_escaliers="7.1",
+    art_ascenseurs="7.2",
     porte_largeur_min=0.80,
     porte_principale_largeur_min=0.80,
     porte_principale_100_utile_min=1.20,

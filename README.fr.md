@@ -167,8 +167,8 @@ Seuils « neuf » (arrêté du 20 avril 2017) puis « existant » (arrêté du
 | Élément | Neuf | Existant | Article |
 |---------|------|----------|---------|
 | Portes, largeur | 0,90 m (0,80 m pour sanitaires et cabines non adaptés) | 0,80 m | Art. 10 |
-| Escaliers, giron | 0,28 m au moins | 0,28 m au moins | Art. 7.1 |
-| Escaliers, hauteur de marche | 0,16 m au plus | 0,17 m au plus | Art. 7.1 |
+| Escaliers, giron | 0,28 m au moins | 0,28 m au moins | Art. 7-1 (neuf), 7.1 (existant) |
+| Escaliers, hauteur de marche | 0,16 m au plus | 0,17 m au plus | Art. 7-1 (neuf), 7.1 (existant) |
 | Rampes, pente | 5 % ; 8 % sur 2 m ; 10 % sur 0,50 m | 6 % ; 10 % sur 2 m ; 12 % sur 0,50 m | Art. 2, repris par l'art. 6 |
 | Couloirs, largeur | 1,40 m (1,20 m en rétrécissement ponctuel) | 1,20 m (0,90 m en rétrécissement ponctuel) | Art. 6, renvoi à l'art. 2 |
 | Sanitaires, demi-tour | Ø 1,50 m, dedans ou à défaut devant la porte | Ø 1,50 m, dedans ou à défaut devant la porte | Art. 12 et annexe 2 |

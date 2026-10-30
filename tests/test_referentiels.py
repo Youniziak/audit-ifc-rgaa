@@ -228,6 +228,14 @@ def test_articles_cites(tmp_path):
     assert all("8 décembre 2014" in a for a in articles.values())
 
 
+def test_numerotation_des_escaliers(tmp_path):
+    # Sur Légifrance : « 7.1 » dans l'arrêté de 2014, « Article 7-1 » dans celui de 2017.
+    m = Maquette()
+    m.escalier(hauteur_marche=0.20)
+    article = m.auditer(tmp_path, NEUF).non_conformites[0].article
+    assert article == "Art. 7-1 — arrêté du 20 avril 2017"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Comparaison terrain
 # ─────────────────────────────────────────────────────────────────────────────

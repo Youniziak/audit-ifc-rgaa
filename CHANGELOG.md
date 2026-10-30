@@ -17,7 +17,8 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   correspond à ce texte.
 - **Articles cités** : les pentes relèvent de l'article 2, repris par
   l'article 6 ; l'article 7.2, cité jusqu'ici pour les rampes, porte sur les
-  ascenseurs. Les articles s'écrivent comme sur Légifrance (7.1, et non 7-1).
+  ascenseurs. Les articles sont numérotés comme sur Légifrance : 7.1 et 7.2
+  dans l'arrêté de 2014, articles 7-1 et 7-2 dans celui de 2017.
 - **Tolérances de pente** : une pente comprise dans les tolérances (sur 2 m
   ou sur 0,50 m) n'est plus déclarée non conforme d'office, mais signalée à
   vérifier, sa conformité dépendant de la longueur du plan incliné.

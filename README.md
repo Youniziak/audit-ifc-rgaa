@@ -183,8 +183,8 @@ buildings (arrêté of 8 December 2014). Details and sources:
 | Element | New | Existing | Article |
 | --- | --- | --- | --- |
 | Doors, width | 0.90 m (0.80 m for non-adapted toilets and cubicles) | 0.80 m | Art. 10 |
-| Stairs, tread depth | at least 0.28 m | at least 0.28 m | Art. 7.1 |
-| Stairs, riser height | at most 0.16 m | at most 0.17 m | Art. 7.1 |
+| Stairs, tread depth | at least 0.28 m | at least 0.28 m | Art. 7-1 (new), 7.1 (existing) |
+| Stairs, riser height | at most 0.16 m | at most 0.17 m | Art. 7-1 (new), 7.1 (existing) |
 | Ramps, slope | 5%; 8% over 2 m; 10% over 0.50 m | 6%; 10% over 2 m; 12% over 0.50 m | Art. 2, applied indoors by Art. 6 |
 | Corridors, width | 1.40 m (1.20 m at a localized narrowing) | 1.20 m (0.90 m at a localized narrowing) | Art. 6, referring to Art. 2 |
 | Sanitary, turning space | Ø 1.50 m, inside or else in front of the door | Ø 1.50 m, inside or else in front of the door | Art. 12 and Annex 2 |
