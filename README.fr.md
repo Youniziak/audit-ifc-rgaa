@@ -276,6 +276,7 @@ audit-ifc-rgaa/
 ├── VERSION                      Version courante (0.6.1)
 ├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
 ├── PLAN_TACTILE.md              Plan tactile : dimensions, sources, choix à valider
+├── PLANS_EXISTANTS.md           Méthode prévue pour lire un plan sans maquette (v0.8)
 ├── LICENSE                      GPL-3.0 pour le code
 ├── requirements.txt             Dépendances Python
 ├── requirements-pdf.txt         Dépendances de l'export PDF (--pdf)
@@ -338,7 +339,7 @@ Standards utilisés :
 - [x] **v0.5** — Export PDF accessible (balisé PDF/UA-1, vérifié par veraPDF)
 - [x] **v0.6** — Plans tactiles en relief à imprimer en 3D (STL), avec légende et écarts de l'audit
 - [ ] **v0.7** — Plans visuels tirés de la maquette (contrastés, agrandissables, mêmes numéros que le plan tactile)
-- [ ] **v0.8** — Lecture de plans existants : PDF vectoriel et DXF d'abord, puis plans scannés et photos, redessinés en maquette IFC après remise à l'échelle sur une cote connue ; mesures à confirmer sur place (comparaison terrain)
+- [ ] **v0.8** — Lecture de plans existants : PDF vectoriel et DXF d'abord, puis plans scannés et photos, redessinés en maquette IFC après remise à l'échelle sur une cote connue ; mesures à confirmer sur place (comparaison terrain). Méthode : [PLANS_EXISTANTS.md](PLANS_EXISTANTS.md)
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
 - [ ] **v1.x** — Premier prototype matériel publié (mètre tactile)
 
