@@ -158,7 +158,7 @@ pip install pytest
 python3 -m pytest tests/
 ```
 
-## Ce qui est vérifié (v0.3.1)
+## Ce qui est vérifié (v0.4)
 
 Seuils « neuf » (arrêté du 20 avril 2017) puis « existant » (arrêté du
 8 décembre 2014). Le détail et les sources sont dans
@@ -172,6 +172,7 @@ Seuils « neuf » (arrêté du 20 avril 2017) puis « existant » (arrêté du
 | Rampes, pente | 5 % ; 8 % sur 2 m ; 10 % sur 0,50 m | 6 % ; 10 % sur 2 m ; 12 % sur 0,50 m | Art. 2, repris par l'art. 6 |
 | Couloirs, largeur | 1,40 m (1,20 m en rétrécissement ponctuel) | 1,20 m (0,90 m en rétrécissement ponctuel) | Art. 6, renvoi à l'art. 2 |
 | Sanitaires, demi-tour | Ø 1,50 m, dedans ou à défaut devant la porte | Ø 1,50 m, dedans ou à défaut devant la porte | Art. 12 et annexe 2 |
+| Espace de manœuvre de porte | 1,70 m côté où l'on pousse, 2,20 m côté où l'on tire | identique | Art. 10 et annexe 2 |
 
 ## Ce qui n'est pas (encore) vérifié
 
@@ -193,7 +194,7 @@ automatisé* de chaque rapport généré.
 audit-ifc-rgaa/
 ├── README.md                    Ce document
 ├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.3.1)
+├── VERSION                      Version courante (0.4.0)
 ├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
 ├── LICENSE                      GPL-3.0 pour le code
 ├── requirements.txt             Dépendances Python
@@ -208,7 +209,7 @@ audit-ifc-rgaa/
 │
 ├── exemples/                    Fichiers de démonstration
 │   ├── test_house.ifc           Maison simple (1 porte)
-│   ├── test_erp_avec_espaces.ifc  ERP fictif (couloirs + sanitaires)
+│   ├── test_erp_avec_espaces.ifc  ERP fictif (couloirs, sanitaires, portes)
 │   └── mesures_exemple.json     Format des mesures terrain
 │
 └── hardware/                    Outils physiques blind-first
@@ -246,7 +247,8 @@ Standards utilisés :
 - [x] **v0.2** — Circulations horizontales et sanitaires accessibles
 - [x] **v0.3** — Comparaison BIM ↔ terrain + export BCF 2.1
 - [x] **v0.3.1** — Choix du texte applicable (neuf ou existant), seuils sourcés, tests
-- [ ] **v0.4** — Espaces de manœuvre, ascenseurs accessibles
+- [x] **v0.4** — Espace de manœuvre devant les portes (annexe 2)
+- [ ] **v0.4.x** — Ascenseurs accessibles (art. 7.2), ressauts, palier de repos
 - [ ] **v0.5** — Export PDF accessible (PDF/UA, ISO 14289)
 - [ ] **v0.6** — Génération automatique de plans tactiles (STL)
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
@@ -284,7 +286,7 @@ public d'accessibilité, attestations de conformité signées).
   title   = {audit-ifc-rgaa : pipeline ouvert d'audit d'accessibilité
              du bâti depuis le BIM},
   year    = {2026},
-  version = {0.3.1},
+  version = {0.4.0},
   url     = {https://github.com/Youniziak/audit-ifc-rgaa},
   license = {GPL-3.0-or-later}
 }

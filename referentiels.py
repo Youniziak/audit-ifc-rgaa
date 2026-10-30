@@ -65,6 +65,10 @@ class Referentiel:
     espace_usage_largeur: float
     espace_usage_longueur: float
 
+    # Espace de manœuvre de porte — article 10 et annexe 2
+    manoeuvre_porte_pousser: float   # longueur côté où l'on pousse la porte
+    manoeuvre_porte_tirer: float     # longueur côté où l'on tire la porte
+
     # Remarque propre au texte, ajoutée aux exigences sur les escaliers
     note_escalier: Optional[str] = None
 
@@ -93,6 +97,8 @@ NEUF = Referentiel(
     demi_tour_diametre=1.50,
     espace_usage_largeur=0.80,
     espace_usage_longueur=1.30,
+    manoeuvre_porte_pousser=1.70,
+    manoeuvre_porte_tirer=2.20,
 )
 
 EXISTANT = Referentiel(
@@ -115,6 +121,8 @@ EXISTANT = Referentiel(
     demi_tour_diametre=1.50,
     espace_usage_largeur=0.80,
     espace_usage_longueur=1.30,
+    manoeuvre_porte_pousser=1.70,
+    manoeuvre_porte_tirer=2.20,
     note_escalier=(
         "En l'absence de travaux changeant les caractéristiques dimensionnelles "
         "de l'escalier, ses caractéristiques initiales peuvent être conservées."

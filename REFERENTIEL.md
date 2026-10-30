@@ -93,17 +93,41 @@ l'extérieur. L'espace d'usage n'est pas encore contrôlé.
 **Surface de 3 m²** : aucun des deux textes ne la fixe. L'outil ne la contrôle
 plus (retirée en 0.3.1).
 
-## Préparé pour la version 0.4 : annexe 2
+## Espace de manœuvre de porte — article 10 et annexe 2
 
-L'annexe 2, identique sur ces points dans les deux textes, définit les espaces
-que la version 0.4 contrôlera :
+Identique dans les deux textes. Devant chaque porte, un rectangle de la
+largeur de la circulation, long de **1,70 m** du côté où l'on pousse la porte
+et de **2,20 m** du côté où on la tire. L'article 10 excepte les portes
+ouvrant uniquement sur un escalier, et celles des sanitaires, douches et
+cabines non adaptés.
 
-- **Espace de manœuvre de porte** : rectangle de la largeur de la circulation,
-  long de 1,70 m si la porte s'ouvre en poussant, de 2,20 m si elle s'ouvre en
-  tirant.
+Ce que fait l'outil (depuis la 0.4.0) :
+
+- Le sens d'ouverture vient du type de la porte dans le BIM (`OperationType`).
+  Une porte battante s'ouvre toujours vers l'axe Y positif de son repère
+  local (spécification IFC de `IfcDoor`) : c'est le côté où l'on tire. Une
+  porte va-et-vient se pousse des deux côtés.
+- De chaque côté de la porte, l'outil cherche l'espace (`IfcSpace`) modélisé
+  et le réduit à sa boîte englobante. Le rectangle peut s'y placer
+  perpendiculairement à la porte ou le long de la circulation : l'écart n'est
+  signalé que si aucune des deux dimensions n'atteint la longueur exigée.
+- Moins de 1,70 m : bloquante, la manœuvre est impossible même en poussant.
+  Entre 1,70 m et 2,20 m côté où l'on tire, ou quand le sens d'ouverture
+  n'est pas renseigné : majeure.
+- Une porte donnant sur un escalier est exclue ; une porte sans espace
+  modélisé d'aucun côté n'est pas contrôlée. Le rapport le signale dans ses
+  limites.
+
+C'est un contrôle de premier niveau : il ne tient compte ni du mobilier, ni de
+la position de la porte le long de la circulation, ni du débattement de la
+porte, et il ne sait pas si un sanitaire est adapté.
+
+## Autres espaces de l'annexe 2
+
 - **Espace de manœuvre avec possibilité de demi-tour** : cercle de 1,50 m de
-  diamètre.
-- **Palier de repos** : rectangle de 1,20 × 1,40 m au moins.
+  diamètre (contrôlé dans les sanitaires).
+- **Palier de repos** : rectangle de 1,20 × 1,40 m au moins (pas encore
+  contrôlé).
 
 ## Sources
 
