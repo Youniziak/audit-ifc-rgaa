@@ -19,6 +19,18 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   l'article 10 ; portes sans espace modélisé signalées dans les limites.
 - Tests `tests/test_manoeuvre_portes.py` ; les maquettes de test sont
   partagées dans `tests/maquette.py`.
+- L'exemple `exemples/test_erp_avec_espaces.ifc` comporte désormais un
+  bureau et trois portes placées, dont une qu'on tire depuis un bureau trop
+  petit ; ses résultats attendus sont décrits dans `exemples/README.md`.
+- `docs/enregistrer_demo.py` : réenregistre la démonstration terminal à
+  partir des vraies commandes, lancées sur un clone neuf du dépôt.
+
+### Modifié
+
+- Démonstration terminal réenregistrée avec la v0.4.0 ; `docs/demo.html`,
+  qui en était une copie, renvoie désormais vers `docs/demo_terminal.html`.
+- Rapports : accords corrigés (« Portes auditées », « 1 significatif ») et
+  taux de conformité écrit avec une virgule.
 
 ## [0.3.1] — 2026-10-30
 

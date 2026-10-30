@@ -32,6 +32,9 @@
     font-size: 1.4rem;
     margin: 8px 0 4px;
   }
+  header p code, section code { color: var(--white); }
+  section h2 { color: var(--white); font-size: 1.05rem; margin: 0 0 6px; }
+  section ol { margin: 0 0 16px; padding-left: 1.4em; font-size: 0.95rem; }
   header p {
     margin: 0 0 16px;
     color: var(--dim);
@@ -133,8 +136,19 @@
 
 <header>
   <h1>audit-ifc-rgaa — démonstration en direct</h1>
-  <p>Sortie authentique des scripts v0.3.0, exécutés le 11 juin 2026. Rien n'est simulé : ce sont les vraies commandes et leurs vrais résultats.</p>
+  <p><!-- DEBUT-ENTETE -->Sortie authentique des scripts v0.4.0, exécutés le 30 octobre 2026 sur un clone neuf du dépôt. Rien n'est simulé : ce sont les vraies commandes et leurs vrais résultats, enregistrés par <code>docs/enregistrer_demo.py</code>.<!-- FIN-ENTETE --></p>
 </header>
+
+<section aria-labelledby="titre-contenu">
+  <h2 id="titre-contenu">Ce que montre la démonstration</h2>
+  <ol>
+    <li>Sans <code>--neuf</code> ni <code>--existant</code>, l'outil refuse de lancer l'audit : il ne choisit jamais le texte réglementaire à la place de l'auditeur.</li>
+    <li>L'audit d'un ERP fictif selon l'arrêté du 8 décembre 2014 (ERP existants) : couloirs, sanitaires, portes et espaces de manœuvre devant les portes.</li>
+    <li>Le rapport complet, lisible au lecteur d'écran.</li>
+    <li>La comparaison avec des mesures de terrain, exportée en BCF : le fichier <code>.bcfzip</code> s'ouvre dans Revit, ArchiCAD ou BIMcollab, chaque écart rattaché à l'élément concerné du modèle.</li>
+    <li>Les tests automatiques du projet.</li>
+  </ol>
+</section>
 
 <div class="toolbar" role="toolbar" aria-label="Contrôles de la démonstration">
   <button id="btnPlay">▶ Lancer la démo</button>
@@ -146,7 +160,7 @@
 <div class="terminal">
   <div class="titlebar" aria-hidden="true">
     <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-    <span>Termux — ~/audit-ifc-rgaa</span>
+    <span>Terminal — ~/audit-ifc-rgaa</span>
   </div>
   <div class="screen-wrap" id="wrap">
     <pre id="screen" role="log" aria-live="polite" aria-label="Sortie du terminal"></pre>
@@ -166,114 +180,195 @@
 <script>
 const PROMPT = "~/audit-ifc-rgaa $ ";
 
-const REPORT = [
-"# Rapport d'audit d'accessibilité — test_erp_avec_espaces.ifc",
-"",
-"**Date de l'audit** : 2026-06-11 05:05:56",
-"**Fichier source** : `exemples/test_erp_avec_espaces.ifc`",
-"**Schéma IFC** : IFC4",
-"**Référentiel** : arrêté du 8 décembre 2014 — accessibilité des ERP existants.",
-"",
-"## Synthèse",
-"",
-"- Nombre d'étages : **1**",
-"- Couloirs audités : **2**",
-"- Sanitaires audités : **2**",
-"- Vérifications conformes : **2**",
-"- Non-conformités relevées : **3**",
-"  - Bloquantes : **2**",
-"  - Majeures : **1**",
-"  - Mineures : **0**",
-"- Taux de conformité : **40.0 %**",
-"",
-"## Non-conformités relevées",
-"",
-"### Couloir",
-"",
-"#### 1. Couloir RDC",
-"",
-"- **Identifiant IFC (GlobalId)** : `0wiZkJ4zH7PvbPwTHCKoZi`",
-"- **Sévérité** : bloquante",
-"- **Article applicable** : Art. 6 — arrêté 8 déc 2014",
-"- **Constat** : Largeur minimale du couloir : 1.10 m.",
-"- **Exigence** : Largeur minimum 1.40 m, rétrécissement ponctuel toléré jusqu'à 1.20 m.",
-"",
-"### Sanitaire",
-"",
-"#### 1. WC standard",
-"",
-"- **Identifiant IFC (GlobalId)** : `12WBpCwYPB7utnuEZ2An1A`",
-"- **Sévérité** : bloquante",
-"- **Article applicable** : Art. 12 — arrêté 8 déc 2014",
-"- **Constat** : Plus petite dimension : 1.20 m. Le cercle de rotation Ø 1,50 m ne peut pas être inscrit.",
-"- **Exigence** : Un espace de manœuvre Ø 1.50 m doit pouvoir s'inscrire dans le sanitaire (hors débattement de porte).",
-"",
-"#### 2. WC standard",
-"",
-"- **Sévérité** : majeure",
-"- **Constat** : Surface : 2.40 m².",
-"- **Exigence** : Surface recommandée ≥ 3.00 m² pour intégrer cuvette, espace d'usage latéral 0,80 × 1,30 m et rotation Ø 1,50 m.",
-"",
-"## Limites du contrôle automatisé",
-"",
-"Cet audit ne couvre que les éléments **géométriques et numériques** du modèle BIM.",
-"Les vérifications suivantes nécessitent un audit complémentaire sur site :",
-"",
-"- Contrastes visuels de la signalétique (WCAG 2.1)",
-"- Bandes podotactiles d'éveil à la vigilance (norme NF P98-351)",
-"- Mains courantes (présence, hauteur, prolongement)",
-"- Sonorisation des feux et des ascenseurs",
-"- Qualité d'usage perçue par les personnes en situation de handicap",
-"",
-"---",
-"",
-"*Rapport généré par audit-ifc-rgaa — outil libre sous licence GPL-3.0.*"
-];
-
+// DEBUT-DONNEES
 const STEPS = [
-  { t: "cmd", text: "ls" },
-  { t: "pause", ms: 400 },
-  { t: "out", delay: 150, lines: [
-    "CHANGELOG.md        audit_ifc_rgaa.py        exemples",
-    "IDEES_FUTURES.md    bcf_export.py            generer_exemple_espaces.py",
-    "LICENSE             comparaison_terrain.py   hardware",
-    "README.fr.md        README.md                requirements.txt",
-    "VERSION"
-  ]},
-  { t: "pause", ms: 700 },
-
-  { t: "cmd", text: "python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc" },
-  { t: "out", delay: 350, lines: [ "Audit en cours : test_erp_avec_espaces.ifc…" ]},
-  { t: "pause", ms: 900 },
-  { t: "out", delay: 220, lines: [
-    "Rapport généré : exemples/test_erp_avec_espaces_audit.md",
-    "  Conformes : 2",
-    "  Non-conformités : 3",
-    "  Taux de conformité : 40.0 %"
-  ]},
-  { t: "pause", ms: 1100 },
-
-  { t: "cmd", text: "cat exemples/test_erp_avec_espaces_audit.md" },
-  { t: "out", delay: 55, lines: REPORT },
-  { t: "pause", ms: 1200 },
-
-  { t: "cmd", text: "python3 comparaison_terrain.py exemples/test_house.ifc exemples/mesures_exemple.json --bcf retours_architecte.bcfzip" },
-  { t: "out", delay: 300, lines: [
-    "Comparaison : test_house.ifc ↔ mesures_exemple.json",
-    "Rapport Markdown : exemples/test_house_terrain.md",
-    "Fichier BCF : retours_architecte.bcfzip",
-    "  Mesures : 2",
-    "  Écarts significatifs BIM/terrain : 1",
-    "  Non-conformités réglementaires : 1"
-  ]},
-  { t: "pause", ms: 800 },
-  { t: "out", delay: 80, lines: [
-    "",
-    "# Le fichier .bcfzip s'ouvre directement dans Revit,",
-    "# ArchiCAD ou BIMcollab : chaque écart apparaît",
-    "# positionné sur le modèle 3D de l'architecte."
-  ]}
+ {
+  "t": "cmd",
+  "text": "ls"
+ },
+ {
+  "t": "out",
+  "delay": 150,
+  "lines": [
+   "CHANGELOG.md       bcf_export.py",
+   "FEEDBACK.md        comparaison_terrain.py",
+   "IDEES_FUTURES.md   docs",
+   "LICENSE            exemples",
+   "README.fr.md       generer_exemple_espaces.py",
+   "README.md          hardware",
+   "REFERENTIEL.md     referentiels.py",
+   "RETOURS.md         requirements.txt",
+   "VERSION            tests",
+   "audit_ifc_rgaa.py"
+  ]
+ },
+ {
+  "t": "pause",
+  "ms": 700
+ },
+ {
+  "t": "cmd",
+  "text": "python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc"
+ },
+ {
+  "t": "out",
+  "delay": 220,
+  "lines": [
+   "usage: audit_ifc_rgaa.py [-h] [--sortie SORTIE] [--neuf |",
+   "                         --existant]",
+   "                         fichier",
+   "audit_ifc_rgaa.py: error: précisez le texte applicable : --neuf (arrêté du 20 avril 2017) ou --existant (arrêté du 8 décembre 2014)."
+  ]
+ },
+ {
+  "t": "pause",
+  "ms": 1000
+ },
+ {
+  "t": "cmd",
+  "text": "python3 audit_ifc_rgaa.py exemples/test_erp_avec_espaces.ifc --existant"
+ },
+ {
+  "t": "out",
+  "delay": 220,
+  "lines": [
+   "Audit en cours : test_erp_avec_espaces.ifc…",
+   "Référentiel : arrêté du 8 décembre 2014 — accessibilité des ERP existants",
+   "Rapport généré : exemples/test_erp_avec_espaces_audit.md",
+   "  Conformes : 7",
+   "  Non-conformités : 3",
+   "  Taux de conformité : 70,0 %"
+  ]
+ },
+ {
+  "t": "pause",
+  "ms": 1100
+ },
+ {
+  "t": "cmd",
+  "text": "cat exemples/test_erp_avec_espaces_audit.md"
+ },
+ {
+  "t": "out",
+  "delay": 55,
+  "lines": [
+   "# Rapport d'audit d'accessibilité — test_erp_avec_espaces.ifc",
+   "",
+   "**Date de l'audit** : 2026-10-30 04:06:29  ",
+   "**Fichier source** : `exemples/test_erp_avec_espaces.ifc`  ",
+   "**Schéma IFC** : IFC4  ",
+   "**Référentiel appliqué** : arrêté du 8 décembre 2014 — accessibilité des ERP existants ([texte sur Légifrance](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000029893131/)).",
+   "",
+   "## Synthèse",
+   "",
+   "- Nombre d'étages : **1**",
+   "- Portes auditées : **3**",
+   "- Escaliers audités : **0**",
+   "- Rampes auditées : **0**",
+   "- Couloirs audités : **2**",
+   "- Sanitaires audités : **2**",
+   "- Espaces de manœuvre de porte audités : **3**",
+   "- Vérifications conformes : **7**",
+   "- Non-conformités relevées : **3**",
+   "  - Bloquantes : **0**",
+   "  - Majeures : **3**",
+   "  - Mineures : **0**",
+   "- Taux de conformité : **70,0 %**",
+   "",
+   "## Non-conformités relevées",
+   "",
+   "### Couloir",
+   "",
+   "#### 1. Couloir RDC",
+   "",
+   "- **Identifiant IFC (GlobalId)** : `0dGd8mphj0Jx5GgcykvDfT`",
+   "- **Sévérité** : majeure",
+   "- **Article applicable** : Art. 6 (renvoi à l'art. 2) — arrêté du 8 décembre 2014",
+   "- **Constat** : Largeur minimale du couloir : 1,10 m.",
+   "- **Exigence** : Largeur de 1,20 m au moins. Une largeur à partir de 0,90 m n'est admise que sur un rétrécissement ponctuel, de faible longueur.",
+   "",
+   "### Sanitaire",
+   "",
+   "#### 1. WC standard",
+   "",
+   "- **Identifiant IFC (GlobalId)** : `2xQhsGMXz1JgEBSNOK8wXD`",
+   "- **Sévérité** : majeure",
+   "- **Article applicable** : Art. 12 et annexe 2 — arrêté du 8 décembre 2014",
+   "- **Constat** : Plus petite dimension : 1,20 m. Un cercle de 1,50 m de diamètre ne peut pas y être inscrit.",
+   "- **Exigence** : Un cabinet d'aisances adapté comporte un espace de manœuvre avec possibilité de demi-tour (Ø 1,50 m) à l'intérieur ou, à défaut, à l'extérieur devant la porte : à vérifier sur plan.",
+   "",
+   "### Espace de manœuvre de porte",
+   "",
+   "#### 1. Porte bureau d'accueil",
+   "",
+   "- **Identifiant IFC (GlobalId)** : `1J5tFVKvHFiAZi$V3ycRVN`",
+   "- **Sévérité** : majeure",
+   "- **Article applicable** : Art. 10 et annexe 2 — arrêté du 8 décembre 2014",
+   "- **Constat** : Côté où l'on tire : espace « Bureau d'accueil » de 1,90 m de profondeur sur 1,90 m ; aucune de ces dimensions n'atteint 2,20 m.",
+   "- **Exigence** : Côté où l'on tire, rectangle de la largeur de la circulation long de 2,20 m.",
+   "",
+   "## Limites du contrôle automatisé",
+   "",
+   "Cet audit ne couvre que les éléments **géométriques et numériques** du modèle BIM. ",
+   "Les vérifications suivantes nécessitent un audit complémentaire sur site :",
+   "",
+   "- Contrastes visuels de la signalétique (WCAG 2.1)",
+   "- Bandes podotactiles d'éveil à la vigilance (norme NF P98-351)",
+   "- Nez de marche contrastés",
+   "- Mains courantes (présence, hauteur, prolongement)",
+   "- Boucles à induction magnétique",
+   "- Sonorisation des feux et des ascenseurs",
+   "- Qualité d'usage perçue par les personnes en situation de handicap",
+   "- Rôle et effectif des portes : l'outil applique le cas d'une porte principale de local de moins de 100 personnes ; à 100 personnes ou plus, le passage utile exigé est de 1,20 m",
+   "- Longueur des plans inclinés, dont dépendent les tolérances de pente",
+   "- Espace de manœuvre de porte : contrôle de premier niveau sur la boîte englobante de chaque espace ; mobilier, position de la porte le long de la circulation et débattement de la porte non pris en compte",
+   "",
+   "---",
+   "",
+   "*Rapport généré par audit-ifc-rgaa — outil libre sous licence GPL-3.0.*  ",
+   "*Cet outil est un dispositif d'aide à l'audit. Il ne se substitue pas à ",
+   "l'expertise humaine d'un auditeur certifié.*"
+  ]
+ },
+ {
+  "t": "pause",
+  "ms": 1200
+ },
+ {
+  "t": "cmd",
+  "text": "python3 comparaison_terrain.py exemples/test_house.ifc exemples/mesures_exemple.json --existant --bcf retours_architecte.bcfzip"
+ },
+ {
+  "t": "out",
+  "delay": 220,
+  "lines": [
+   "Comparaison : test_house.ifc ↔ mesures_exemple.json",
+   "Référentiel : arrêté du 8 décembre 2014 — accessibilité des ERP existants",
+   "Rapport Markdown : exemples/test_house_terrain.md",
+   "Fichier BCF : retours_architecte.bcfzip",
+   "  Mesures : 2",
+   "  Écarts significatifs BIM/terrain : 1",
+   "  Non-conformités réglementaires : 0"
+  ]
+ },
+ {
+  "t": "pause",
+  "ms": 1000
+ },
+ {
+  "t": "cmd",
+  "text": "python3 -m pytest tests/ -q"
+ },
+ {
+  "t": "out",
+  "delay": 120,
+  "lines": [
+   "............................                             [100%]",
+   "28 passed in 0.98s"
+  ]
+ }
 ];
+// FIN-DONNEES
 
 const screen = document.getElementById("screen");
 const wrap = document.getElementById("wrap");

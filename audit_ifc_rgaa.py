@@ -753,6 +753,14 @@ def auditer_manoeuvre_portes(ifc_file, scale: float, rapport: RapportAudit) -> N
 #  GÉNÉRATION DU RAPPORT MARKDOWN ACCESSIBLE
 # ─────────────────────────────────────────────────────────────────────────────
 
+_NOMS_FEMININS = {"Portes", "Rampes"}
+
+
+def _taux(rapport: RapportAudit) -> str:
+    """Taux de conformité en écriture française, ex. « 66,7 % »."""
+    return f"{rapport.taux_conformite:.1f}".replace(".", ",") + " %"
+
+
 def generer_rapport_markdown(rapport: RapportAudit) -> str:
     """Produit un rapport Markdown structuré, lisible par un lecteur d'écran."""
     lignes: list[str] = []
@@ -775,14 +783,15 @@ def generer_rapport_markdown(rapport: RapportAudit) -> str:
     lignes.append(f"- Nombre d'étages : **{rapport.nb_etages}**")
     for elt, nb in rapport.elements_audites.items():
         if elt != "Étages":
-            lignes.append(f"- {elt} audités : **{nb}**")
+            accord = "auditées" if elt in _NOMS_FEMININS else "audités"
+            lignes.append(f"- {elt} {accord} : **{nb}**")
     lignes.append(f"- Vérifications conformes : **{nb_ok}**")
     lignes.append(f"- Non-conformités relevées : **{nb_nc}**")
     if nb_nc > 0:
         lignes.append(f"  - Bloquantes : **{bloquantes}**")
         lignes.append(f"  - Majeures : **{majeures}**")
         lignes.append(f"  - Mineures : **{mineures}**")
-    lignes.append(f"- Taux de conformité : **{rapport.taux_conformite:.1f} %**\n")
+    lignes.append(f"- Taux de conformité : **{_taux(rapport)}**\n")
 
     # Non-conformités
     if rapport.non_conformites:
@@ -927,7 +936,7 @@ def main() -> int:
     print(f"Rapport généré : {sortie}")
     print(f"  Conformes : {len(rapport.conformites)}")
     print(f"  Non-conformités : {len(rapport.non_conformites)}")
-    print(f"  Taux de conformité : {rapport.taux_conformite:.1f} %")
+    print(f"  Taux de conformité : {_taux(rapport)}")
 
     return 0
 

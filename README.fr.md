@@ -209,7 +209,7 @@ audit-ifc-rgaa/
 │
 ├── exemples/                    Fichiers de démonstration
 │   ├── test_house.ifc           Maison simple (1 porte)
-│   ├── test_erp_avec_espaces.ifc  ERP fictif (couloirs + sanitaires)
+│   ├── test_erp_avec_espaces.ifc  ERP fictif (couloirs, sanitaires, portes)
 │   └── mesures_exemple.json     Format des mesures terrain
 │
 └── hardware/                    Outils physiques blind-first

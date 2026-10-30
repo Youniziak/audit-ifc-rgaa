@@ -224,7 +224,7 @@ audit-ifc-rgaa/
 │
 ├── exemples/                    Demonstration files
 │   ├── test_house.ifc           Simple house (1 door)
-│   ├── test_erp_avec_espaces.ifc  Fictional ERP (corridors + sanitary)
+│   ├── test_erp_avec_espaces.ifc  Fictional ERP (corridors, toilets, doors)
 │   └── mesures_exemple.json     On-site measurement format
 │
 └── hardware/                    Blind-first physical tools

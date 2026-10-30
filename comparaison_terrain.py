@@ -315,7 +315,8 @@ def generer_rapport(audit_meta: dict, ecarts: list[Ecart], ref: Referentiel) -> 
     lignes.append("## Synthèse\n")
     lignes.append(f"- Mesures effectuées : **{n_total}**")
     lignes.append(f"- Mesures concordantes avec le BIM : **{n_concordants}**")
-    lignes.append(f"- Écarts BIM ↔ terrain : **{n_ecarts}** (dont **{n_significatifs}** significatifs)")
+    accord = "significatif" if n_significatifs < 2 else "significatifs"
+    lignes.append(f"- Écarts BIM ↔ terrain : **{n_ecarts}** (dont **{n_significatifs}** {accord})")
     lignes.append(f"- Non-conformités réglementaires sur le réel : **{n_non_conformes}**")
     if n_a_verifier:
         lignes.append(f"- Valeurs à vérifier (tolérance liée à la longueur) : **{n_a_verifier}**")
