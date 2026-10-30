@@ -1647,14 +1647,15 @@ def chemins_de_sortie(demande: Path, pdf: bool) -> tuple[Path, Path]:
     return demande, demande.with_suffix(".pdf")
 
 
-def exporter_pdf_et_verifier(texte_md: str, chemin_pdf: Path) -> int:
-    """Écrit le PDF et le vérifie si veraPDF est installé.
+def exporter_pdf_et_verifier(texte_md: str, chemin_pdf: Path, images: Optional[dict] = None) -> int:
+    """Écrit le PDF et le vérifie si veraPDF est installé (`images` : voir
+    pdf_accessible.exporter_pdf).
 
     Retourne 0, ou 1 si l'export est impossible, si le PDF n'est pas conforme
     ou si la vérification n'a pas pu se faire."""
     from pdf_accessible import exporter_pdf, verifier_pdf_ua
     try:
-        exporter_pdf(texte_md, chemin_pdf)
+        exporter_pdf(texte_md, chemin_pdf, images=images)
     except RuntimeError as erreur:
         sys.stderr.write(f"Erreur : {erreur}\n")
         return 1

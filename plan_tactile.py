@@ -1137,7 +1137,7 @@ def poser_etiquette(des, texte: str, disposition: str, x: float, y_haut: float, 
     for px, py in points:
         des.domes.append((px, py, d.point_diametre, d.point_hauteur))
     if lettres is not None:
-        des.prismes.append((lettres, d.lettre_relief))
+        des.ajouter(lettres, d.lettre_relief, "lettres")
 
 
 def _place_etiquette(zone, largeur: float, hauteur: float, cible) -> Optional[tuple[float, float]]:
@@ -1196,6 +1196,18 @@ class Dessin:
     nord: Optional[str] = None
     echelle_m: int = 0
     origine: tuple = (0.0, 0.0)  # point de la plaque (mm) où tombe le coin bas gauche de la fenêtre
+    # Pour le plan visuel : (genre, polygone) de chaque relief, dans l'ordre où
+    # ils sont posés (« mur », « paroi », « strie », « ascenseur », « entree »,
+    # « lettres », « nord », « echelle », « essai »), et (numéro, x, y) des dômes d'écart.
+    calques: list = field(default_factory=list)
+    positions_reperes: list = field(default_factory=list)
+    # (numéro, x, y du haut, largeur, hauteur) des numéros de local en braille seul
+    etiquettes_braille: list = field(default_factory=list)
+
+    def ajouter(self, geom, hauteur: float, genre: str) -> None:
+        """Ajoute un relief de cette hauteur, en notant ce qu'il représente."""
+        self.prismes.append((geom, hauteur))
+        self.calques.append((genre, geom))
 
 
 def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, float]]) -> Dessin:
@@ -1242,9 +1254,9 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
                           for b in _polygones(basses)])
     basses = basses.difference(murs).difference(portes).intersection(zone_dessin)
     if not murs.is_empty:
-        des.prismes.append((murs, d.mur))
+        des.ajouter(murs, d.mur, "mur")
     if not basses.is_empty:
-        des.prismes.append((basses, d.paroi_basse))
+        des.ajouter(basses, d.paroi_basse, "paroi")
     obstacles = unary_union([murs, basses])
     ecarte = obstacles.buffer(1.0)
 
@@ -1286,7 +1298,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
                 direction = tuple(rect[1]) if rect else (1.0, 0.0)
             stries = _rayures(forme, direction, d)
             if not stries.is_empty:
-                des.prismes.append((stries, d.strie))
+                des.ajouter(stries, d.strie, "strie")
                 dessinees.append((sens, monte))
         if not dessinees:
             if trop_petit:
@@ -1359,7 +1371,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         if f.is_empty:
             des.non_dessines.append(nom[0].lower() + nom[1:])
             continue
-        des.prismes.append((f, d.ascenseur))
+        des.ajouter(f, d.ascenseur, "ascenseur")
         des.ascenseurs.append(nom)
 
     reliefs = unary_union([g for g, _ in des.prismes] + [c[0] for c in des.coins])
@@ -1435,7 +1447,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
     des.titre_a_droite = x_titre != positions_titre[0]
     des.barre_a_droite = x_barre != positions_barre[0]
     for tri in triangles:
-        des.prismes.append((tri, d.entree))
+        des.ajouter(tri, d.entree, "entree")
     des.entrees = len(triangles)
     occupe = reliefs.buffer(0.5)
     for tri in triangles:
@@ -1480,6 +1492,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
     places_reperes.sort(key=lambda t: (-round(t[0].y / 15), t[0].x))
     for q, lignes, local in places_reperes:
         des.reperes.append((len(des.reperes) + 1, lignes, local, True))
+        des.positions_reperes.append((len(des.reperes), q.x, q.y))
     for lignes, local in sans_place:
         des.reperes.append((len(des.reperes) + 1, lignes, local, False))
 
@@ -1511,6 +1524,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         des.numeros.append((numero, local.nom))
         if disposition == "braille":
             des.braille_seul.append(numero)
+            des.etiquettes_braille.append((numero, coin[0], coin[1], larg, haut))
         garde = garde.union(box(coin[0], coin[1] - haut, coin[0] + larg, coin[1]).buffer(d.distance))
     for texte, disposition, (cx, cy) in places:
         poser_etiquette(des, texte, disposition, cx, cy, d)
@@ -1522,8 +1536,8 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         des.domes.append((x, y, d.point_diametre, d.point_hauteur))
     if not des.titre_sans_lettres:
         haut_lettres = taille_lettres(en_lettres(page.titre), d)[1]
-        des.prismes.append((dessin_lettres(en_lettres(page.titre), tx + larg_titre_braille + d.distance,
-                                           H - d.bandeau / 2 - haut_lettres / 2, d), d.lettre_relief))
+        des.ajouter(dessin_lettres(en_lettres(page.titre), tx + larg_titre_braille + d.distance,
+                                   H - d.bandeau / 2 - haut_lettres / 2, d), d.lettre_relief, "lettres")
     if nord is not None:
         nx, ny = nord
         cx, cy = W - d.marge - 6, H - d.bandeau / 2
@@ -1531,7 +1545,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
                           (cx - nx * 4 - ny * 3, cy - ny * 4 + nx * 3),
                           (cx - nx * 2, cy - ny * 2),
                           (cx - nx * 4 + ny * 3, cy - ny * 4 - nx * 3)])
-        des.prismes.append((fleche, d.paroi_basse))
+        des.ajouter(fleche, d.paroi_basse, "nord")
         des.nord = _direction_en_mots(nx, ny)
 
     # Bandeau du bas : barre d'échelle d'un nombre rond de mètres (calculée
@@ -1543,7 +1557,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         box(x_barre, by - 3.0, x_barre + 1.2, by + 3.0),
         box(x_barre + longueur - 1.2, by - 3.0, x_barre + longueur, by + 3.0),
     ])
-    des.prismes.append((barre, d.paroi_basse))
+    des.ajouter(barre, d.paroi_basse, "echelle")
     texte = texte_echelle
     larg, haut = taille_braille(texte, d)
     lx = x_barre + longueur + d.distance + 1.0
@@ -1553,7 +1567,7 @@ def dessiner(page: Page, den: int, d: Dimensions, nord: Optional[tuple[float, fl
         lx += larg + d.distance
         larg_l, haut_l = taille_lettres(texte, d)
         if lx + larg_l < W - d.marge + 1e-6:
-            des.prismes.append((dessin_lettres(texte, lx, by - haut_l / 2, d), d.lettre_relief))
+            des.ajouter(dessin_lettres(texte, lx, by - haut_l / 2, d), d.lettre_relief, "lettres")
     return des
 
 
@@ -1784,10 +1798,10 @@ def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
     # Les plaques et la légende PDF d'un essai précédent dans ce dossier sont
     # retirées : la nouvelle légende ne les décrirait pas.
     for ancien in dossier.iterdir():
-        if (re.fullmatch(re.escape(base) + r"_plan\d+(_partie\d+)?\.stl", ancien.name)
+        if (re.fullmatch(re.escape(base) + r"_plan\d+(_partie\d+)?\.(stl|svg)", ancien.name)
                 or ancien.name == f"{base}_plan_tactile.pdf"):
             ancien.unlink()
-    fichiers, pages_info = [], []
+    fichiers, vues, pages_info = [], [], []
     for i, niv in enumerate(niveaux):
         for jy in range(ny):
             for jx in range(nx):
@@ -1801,6 +1815,9 @@ def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
                 chemin = dossier / nom
                 ecrire_stl(solide, chemin)
                 fichiers.append(chemin)
+                vue = chemin.with_suffix(".svg")
+                vue.write_text(_vue(des, d, i, niv, partie, nx * ny > 1), encoding="utf-8")
+                vues.append(vue)
                 pages_info.append((i, niv, partie, titre, des, chemin, fen))
 
     conseil = None
@@ -1818,6 +1835,7 @@ def generer_plan(chemin_ifc: str, dossier: Path, d: Dimensions = Dimensions(),
     chemin_md.write_text(legende, encoding="utf-8")
     resume = {"echelle": den, "plaque": (W, H), "parties": (nx, ny), "stl": fichiers,
               "legende": chemin_md, "niveaux": len(niveaux), "conseil": conseil,
+              "svg": vues,  # plan visuel de chaque plaque
               "reperes": reperes,  # (dômes posés, écarts placés sur un niveau)
               # Pour les tests : (titre, dessin, fenêtre en mètres) de chaque plaque.
               "pages": [(info[3], info[4], info[6]) for info in pages_info]}
@@ -1830,6 +1848,22 @@ def _metres(x: float) -> str:
 
 def _pourcent(g: float) -> str:
     return f"{g * 100:.1f}".replace(".", ",") + " %"
+
+
+def _texte_vue(i: int, niv, partie: int, en_parties: bool) -> str:
+    """Texte de remplacement du plan visuel d'une plaque."""
+    nom = f"Plan {i + 1}" + (f", partie {partie}" if en_parties else "")
+    return (f"{nom}, niveau « {niv.nom} » : la plaque dessinée en noir sur blanc (murs en noir, "
+            "parois basses en gris, escaliers en stries, rampes en gris clair avec une flèche vers "
+            "le haut, numéros des locaux en chiffres, braille en points gris, repères d'écart "
+            "numérotés). Les locaux et les repères sont décrits ci-dessous.")
+
+
+def _vue(des, d: Dimensions, i: int, niv, partie: int, en_parties: bool) -> str:
+    """Plan visuel (SVG) d'une plaque."""
+    from plan_visuel import dessin_en_svg
+    nom = f"Plan {i + 1}" + (f", partie {partie}" if en_parties else "")
+    return dessin_en_svg(des, d, f"{nom}, niveau « {niv.nom} »", _texte_vue(i, niv, partie, en_parties))
 
 
 def _mm(x: float) -> str:
@@ -1899,6 +1933,8 @@ def generer_legende(chemin_ifc, pages_info, den, plaque, d: Dimensions, nx, ny, 
         L.append("")
         nom_partie = f"Plan {i + 1}" + (f", partie {partie}" if nx * ny > 1 else "")
         L.append(f"## {nom_partie} — niveau « {niv.nom} »")
+        L.append("")
+        L.append(f"![{_texte_vue(i, niv, partie, nx * ny > 1)}]({chemin.with_suffix('.svg').name})")
         L.append("")
         lettres = ("" if des.titre_sans_lettres
                    else f", écrit aussi en lettres : « {en_lettres(titre)} »")
@@ -2013,16 +2049,16 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
     tx = d.coin + d.distance + 1.0
     for px, py in points_braille("eprouvette", tx, H - (d.bandeau - taille_braille("eprouvette", d)[1]) / 2, d):
         des.domes.append((px, py, d.point_diametre, d.point_hauteur))
-    des.prismes.append((dessin_lettres("ÉPROUVETTE", tx + taille_braille("eprouvette", d)[0] + d.distance,
-                                       H - d.bandeau / 2 - taille_lettres("E", d)[1] / 2, d),
-                        d.lettre_relief))
+    des.ajouter(dessin_lettres("ÉPROUVETTE", tx + taille_braille("eprouvette", d)[0] + d.distance,
+                               H - d.bandeau / 2 - taille_lettres("E", d)[1] / 2, d),
+                d.lettre_relief, "lettres")
     ecart = 4.0  # entre un numéro et son essai
 
     lignes += ["## Rangée 1 : hauteur des murs", ""]
     yc = 116.0
     for i, h in enumerate((2.0, 3.0, 4.0, 5.0), 1):
         fin_num = numero(i, 6 + (i - 1) * 36, yc) + ecart
-        des.prismes.append((box(fin_num, yc - d.largeur_min / 2, fin_num + 18, yc + d.largeur_min / 2), h))
+        des.ajouter(box(fin_num, yc - d.largeur_min / 2, fin_num + 18, yc + d.largeur_min / 2), h, "essai")
         lignes.append(ligne(i, f"mur de {_mm(h)} de haut, {_mm(d.largeur_min)} de large"))
 
     lignes += ["", f"## Rangée 2 : passage de porte dans un mur de {_mm(d.mur)}", ""]
@@ -2030,7 +2066,7 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
     for i, g in enumerate((3.0, 5.0, 8.0), 1):
         fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
         for x0, x1 in ((fin_num, fin_num + 10), (fin_num + 10 + g, fin_num + 20 + g)):
-            des.prismes.append((box(x0, yc - d.largeur_min / 2, x1, yc + d.largeur_min / 2), d.mur))
+            des.ajouter(box(x0, yc - d.largeur_min / 2, x1, yc + d.largeur_min / 2), d.mur, "essai")
         lignes.append(ligne(i, f"passage de {_mm(g)}"))
 
     lignes += ["", "## Rangée 3 : hauteur des points braille (mot « mur », en lettres au-dessus)", ""]
@@ -2048,7 +2084,7 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
     for i, pas in enumerate((2.0, 3.0, 4.0), 1):
         fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
         stries = _rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), replace(d, strie_pas=pas))
-        des.prismes.append((stries, d.strie))
+        des.ajouter(stries, d.strie, "essai")
         lignes.append(ligne(i, f"stries tous les {_mm(pas)}"))
 
     # L'étude de Kaplan et Pyayt trouve trop bas les codages d'escalier de 1 et
@@ -2057,7 +2093,7 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
     yc = 36.0
     for i, h in enumerate((1.0, 2.0, 3.0), 1):
         fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
-        des.prismes.append((_rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), d), h))
+        des.ajouter(_rayures(box(fin_num, yc - 6, fin_num + 26, yc + 6), (1.0, 0.0), d), h, "essai")
         lignes.append(ligne(i, f"stries de {_mm(h)} de haut"))
 
     # Les lettres ordinaires sont là pour être vues : leur taille se choisit
@@ -2067,8 +2103,8 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
     yc = 16.0
     for i, h in enumerate((4.0, 6.0, 8.0), 1):
         fin_num = numero(i, 6 + (i - 1) * 48, yc) + ecart
-        des.prismes.append((dessin_lettres("AB8", fin_num, yc - taille_lettres("AB8", d, h)[1] / 2, d, h),
-                            d.lettre_relief))
+        des.ajouter(dessin_lettres("AB8", fin_num, yc - taille_lettres("AB8", d, h)[1] / 2, d, h),
+                    d.lettre_relief, "lettres")
         lignes.append(ligne(i, f"lettres de {_mm(h)} de haut"))
 
     lignes += ["", f"Les numéros et le titre ont des points de {_mm(d.point_hauteur)} et des "
@@ -2078,6 +2114,12 @@ def generer_eprouvette(dossier: Path, d: Dimensions = Dimensions()) -> tuple[Pat
     dossier.mkdir(parents=True, exist_ok=True)
     stl = dossier / "eprouvette_plan_tactile.stl"
     ecrire_stl(relief(des, d), stl)
+    from plan_visuel import dessin_en_svg
+    texte = ("L'éprouvette dessinée en noir sur blanc : six rangées d'essais, chacune avec ses "
+             "numéros en chiffres et leurs points braille en gris, décrites ci-dessous.")
+    stl.with_suffix(".svg").write_text(dessin_en_svg(des, d, "Éprouvette du plan tactile", texte),
+                                       encoding="utf-8")
+    lignes[2:2] = [f"![{texte}]({stl.with_suffix('.svg').name})", ""]
     md = dossier / "eprouvette_plan_tactile.md"
     md.write_text("\n".join(lignes), encoding="utf-8")
     return stl, md
@@ -2141,7 +2183,8 @@ def main() -> int:
             print(f"Éprouvette : {stl}")
             print(f"Légende : {md}")
             if args.pdf:
-                return exporter_pdf_et_verifier(md.read_text(encoding="utf-8"), md.with_suffix(".pdf"))
+                return exporter_pdf_et_verifier(md.read_text(encoding="utf-8"), md.with_suffix(".pdf"),
+                                                {stl.with_suffix(".svg").name: stl.with_suffix(".svg").read_bytes()})
             return 0
         if not args.fichier:
             parser.error("indiquez un fichier IFC, ou --eprouvette")
@@ -2176,9 +2219,12 @@ def main() -> int:
         den_c, (cx, cy), faits, total = resume["conseil"]
         print(f"Numéros des locaux : {faits} sur {total} placés. Avec --echelle {den_c}, "
               f"8 sur 10 environ, sur {cx * cy} plaque(s) par niveau.")
+    for f in resume["svg"]:
+        print(f"Plan visuel : {f}")
     if args.pdf:
         md = resume["legende"]
-        return exporter_pdf_et_verifier(md.read_text(encoding="utf-8"), md.with_suffix(".pdf"))
+        return exporter_pdf_et_verifier(md.read_text(encoding="utf-8"), md.with_suffix(".pdf"),
+                                        {f.name: f.read_bytes() for f in resume["svg"]})
     return 0
 
 

@@ -66,6 +66,8 @@ code { font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
 a { color: #0b4f9c; text-decoration: underline; }
 hr { border: none; border-top: 1pt solid #555; margin: 1.5em 0; }
 strong { font-weight: bold; }
+/* Plans : jamais plus larges que la page, et seuls sur leur ligne. */
+img { max-width: 100%; height: auto; display: block; margin: 0.5em 0; }
 """
 
 
@@ -100,13 +102,33 @@ def markdown_vers_html(texte_md: str, langue: str = "fr") -> str:
     )
 
 
-def _aucune_ressource(url, *args, **kwargs):
-    """Récupérateur d'adresses de WeasyPrint qui refuse tout."""
-    raise ValueError(f"ressource externe refusée : {url}")
+# Adresse fictive (domaine réservé .invalid) sous laquelle les images
+# fournies par l'outil sont servies au moteur PDF ; rien d'autre ne l'est.
+_BASE_IMAGES = "https://images.invalid/"
 
 
-def exporter_pdf(texte_md: str, chemin: Path, langue: str = "fr") -> Path:
-    """Écrit le rapport en PDF balisé (variante PDF/UA-1) et retourne son chemin."""
+def _recuperateur(images: dict):
+    """Récupérateur d'adresses de WeasyPrint qui ne sert que les images SVG
+    produites par l'outil (par leur nom de fichier) et refuse tout le reste :
+    un texte venu de la maquette ne peut pas faire entrer un fichier dans le PDF."""
+    from weasyprint.urls import URLFetcher, URLFetcherResponse
+
+    class Recuperateur(URLFetcher):
+        def fetch(self, url, headers=None):
+            nom = url[len(_BASE_IMAGES):] if url.startswith(_BASE_IMAGES) else None
+            if nom in images:
+                return URLFetcherResponse(url, images[nom], {"Content-Type": "image/svg+xml"})
+            raise ValueError(f"ressource externe refusée : {url}")
+
+    return Recuperateur()
+
+
+def exporter_pdf(texte_md: str, chemin: Path, langue: str = "fr",
+                 images: Optional[dict] = None) -> Path:
+    """Écrit le rapport en PDF balisé (variante PDF/UA-1) et retourne son chemin.
+
+    `images` : {nom de fichier: contenu SVG} des images que le Markdown
+    appelle par leur nom (« ![texte de remplacement](plan1.svg) »)."""
     try:
         importlib.import_module("markdown")
         from weasyprint import HTML
@@ -122,9 +144,8 @@ def exporter_pdf(texte_md: str, chemin: Path, langue: str = "fr") -> Path:
             "pkg install pango (Termux)."
         ) from erreur
     chemin = Path(chemin)
-    HTML(string=markdown_vers_html(texte_md, langue), url_fetcher=_aucune_ressource).write_pdf(
-        str(chemin), pdf_variant="pdf/ua-1"
-    )
+    HTML(string=markdown_vers_html(texte_md, langue), base_url=_BASE_IMAGES,
+         url_fetcher=_recuperateur(images or {})).write_pdf(str(chemin), pdf_variant="pdf/ua-1")
     return chemin
 
 

@@ -5,6 +5,24 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.7.0] — 2026-10-30
+
+### Ajouté
+
+- **Plan visuel** (`plan_visuel.py`) : chaque plaque du plan tactile est aussi
+  écrite en SVG, à côté du STL, noir sur blanc et agrandissable sans flou.
+  Même mise en page et mêmes numéros que la plaque : la personne qui voit (ou
+  voit mal, avec ZoomText ou une loupe) et celle qui touche ont le même plan.
+  En plus de la plaque : le numéro de chaque repère d'écart dans son dôme,
+  une flèche vers le haut de chaque rampe, les chiffres des numéros de local
+  que la plaque n'a qu'en braille.
+- La légende Markdown montre le plan de chaque plaque, avec un texte de
+  remplacement ; l'éprouvette a aussi son plan visuel.
+- `pdf_accessible.exporter_pdf(…, images=…)` : un PDF peut contenir des
+  images SVG fournies par l'outil, balisées comme figures avec leur texte de
+  remplacement (veraPDF : conforme PDF/UA-1). Toute autre image demandée par
+  le texte reste refusée.
+
 ## [0.6.1] — 2026-10-30
 
 ### Ajouté

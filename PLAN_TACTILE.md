@@ -1,6 +1,6 @@
 # Plan tactile — ce qui est dessiné, dimensions et sources
 
-Ce document accompagne `plan_tactile.py` (v0.6.1). Il dit ce que l'outil
+Ce document accompagne `plan_tactile.py` et `plan_visuel.py` (v0.7.0). Il dit ce que l'outil
 dessine, avec quelles dimensions, d'où vient chaque chiffre, et ce qui reste
 à valider en touchant une plaque imprimée.
 
@@ -150,6 +150,26 @@ qui garantit un maillage fermé. Les reliefs voisins se chevauchent au lieu de
 se toucher exactement : chaque relief est épaissi de 0,02 à 0,05 mm par côté.
 Mesuré sur l'éprouvette : les passages annoncés de 3, 5 et 8 mm font 2,92,
 4,93 et 7,94 mm, un mur de 1,2 mm en fait 1,24.
+
+## Le plan visuel
+
+Chaque plaque est aussi écrite en SVG (`…_plan1.svg`, à côté du STL), à sa taille
+réelle : la même mise en page, dessinée en noir sur blanc. On l'agrandit sans
+flou. La légende l'affiche, avec un texte de remplacement, et le PDF de `--pdf`
+aussi (veraPDF : conforme PDF/UA-1).
+
+| Sur la plaque | Sur le plan visuel |
+|---|---|
+| Mur, triangle d'entrée, stries, écriture, flèche du nord, barre d'échelle | noir |
+| Paroi basse (fenêtre, garde-corps) | gris foncé (#595959, contraste 7:1 sur le blanc) |
+| Ascenseur | hachures noires |
+| Rampe | gris clair bordé de noir, avec une flèche noire vers le haut de la pente |
+| Point braille | point gris |
+| Dôme d'écart | disque noir avec son numéro de la légende, en blanc |
+| Numéro en braille seul (pas la place pour les chiffres) | points gris, et les chiffres à côté |
+
+Ce qui est en plus sur le plan visuel (numéros des repères, flèches des rampes,
+chiffres des numéros en braille seul) n'est pas sur la plaque.
 
 ## L'éprouvette
 
