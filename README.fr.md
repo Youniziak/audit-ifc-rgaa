@@ -35,7 +35,7 @@ confronter à la réalité.
 
 `audit-ifc-rgaa` est un **pipeline complet en deux volets** :
 
-### Volet logiciel — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`
+### Volet logiciel — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`, `plan_tactile.py`
 
 - Parse le fichier IFC d'un projet
 - Vérifie automatiquement la conformité aux exigences du texte applicable,
@@ -47,6 +47,8 @@ confronter à la réalité.
 - Compare les valeurs déclarées aux **mesures terrain** (fichier JSON)
 - Exporte les écarts au format **BCF 2.1** standard, échangeable avec
   Revit, ArchiCAD, BIMcollab, Solibri, BlenderBIM
+- Produit un **plan tactile en relief** de chaque niveau, à imprimer en 3D,
+  avec les écarts de l'audit marqués d'un dôme si on le demande
 
 ### Volet matériel — dossier `hardware/`
 
@@ -118,7 +120,8 @@ pip install -r requirements.txt
 ```
 
 Dépendance : [IfcOpenShell](https://ifcopenshell.org/) (LGPL). Pour le PDF
-accessible (option `--pdf`) : `pip install -r requirements-pdf.txt`.
+accessible (option `--pdf`) : `pip install -r requirements-pdf.txt`. Pour le
+plan tactile : `pip install -r requirements-plan.txt`.
 
 ## Utilisation rapide
 
@@ -180,13 +183,47 @@ L'export n'a pas encore été essayé sur Termux. Pistes, non vérifiées :
 `pkg install pango python-pillow ttf-dejavu`, puis
 `pip install -r requirements-pdf.txt` (pip devra compiler cffi).
 
-### 4. Régénérer le fichier IFC de test
+### 4. Plan tactile à imprimer en 3D
+
+```bash
+pip install -r requirements-plan.txt
+python3 plan_tactile.py exemples/test_house.ifc
+```
+
+Écrit, dans le dossier `exemples/test_house_plan_tactile/`, un fichier STL par
+niveau et une légende en Markdown (lisible au lecteur d'écran). Sur la plaque :
+murs en relief, fenêtres en relief plus bas, portes ouvertes dans le mur,
+escaliers en stries, rampes en plan incliné, ascenseurs en plateau, numéros
+des locaux en braille. La légende donne le nom de chaque local, le sens des
+symboles et l'échelle, le sens de chaque escalier et de chaque rampe, et dit
+ce qui n'a pas pu aller sur la plaque à cette échelle (escalier trop petit,
+dôme sans place dans son local, porte sans triangle).
+
+- `--neuf` ou `--existant` : lance aussi l'audit et marque chaque élément non
+  conforme d'un dôme en relief ; la légende donne ses constats.
+- `--echelle 100` : impose l'échelle ; un niveau trop grand est coupé en
+  plusieurs plaques. Sans cette option, l'outil prend la plus grande échelle
+  où le niveau tient sur une plaque, et la légende conseille une échelle si
+  trop de locaux n'ont pas pu recevoir leur numéro.
+- `--plateau 250x210` : taille maximale de la plaque, en mm (200 × 200 par défaut).
+- `--eprouvette` : plaque d'essai (hauteurs de murs, passages, points braille,
+  écart et hauteur des stries) à imprimer et toucher avant le premier plan ;
+  `--hauteur-murs`, `--hauteur-stries` et `--hauteur-points` règlent ensuite
+  le plan.
+- `--pdf` : légende aussi en PDF accessible, vérifiée par veraPDF s'il est installé (comme pour l'audit).
+
+Les dimensions, leurs sources (ISO 17049, ISO 19028, BANA) et ce qui reste à
+valider en touchant une plaque sont dans [PLAN_TACTILE.md](PLAN_TACTILE.md).
+Un plan tactile n'est pas une exigence des arrêtés : c'est un outil
+d'orientation, ou de travail pour l'auditeur. Pas encore essayé sur Termux.
+
+### 5. Régénérer le fichier IFC de test
 
 ```bash
 python3 generer_exemple_espaces.py
 ```
 
-### 5. Lancer les tests
+### 6. Lancer les tests
 
 ```bash
 pip install pytest
@@ -234,17 +271,20 @@ automatisé* de chaque rapport généré.
 audit-ifc-rgaa/
 ├── README.md                    Ce document
 ├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.5.0)
+├── VERSION                      Version courante (0.6.0)
 ├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
+├── PLAN_TACTILE.md              Plan tactile : dimensions, sources, choix à valider
 ├── LICENSE                      GPL-3.0 pour le code
 ├── requirements.txt             Dépendances Python
 ├── requirements-pdf.txt         Dépendances de l'export PDF (--pdf)
+├── requirements-plan.txt        Dépendances du plan tactile
 │
 ├── audit_ifc_rgaa.py            Module principal — audit conformité IFC
 ├── referentiels.py              Seuils des deux textes (neuf / existant)
 ├── comparaison_terrain.py       Comparaison BIM ↔ mesures terrain
 ├── bcf_export.py                Génération de fichiers BCF 2.1
 ├── pdf_accessible.py            Rapport en PDF balisé (PDF/UA-1)
+├── plan_tactile.py              Plan tactile en relief (STL) et légende
 ├── generer_exemple_espaces.py   Helper de génération d'IFC de test
 │
 ├── tests/                       Tests (python3 -m pytest tests/)
@@ -294,7 +334,9 @@ Standards utilisés :
 - [x] **v0.4.2** — Rampes (longueur, paliers de repos) et seuils de porte
 - [x] **v0.4.3** — Largeur des escaliers, mesures des marches sur la géométrie
 - [x] **v0.5** — Export PDF accessible (balisé PDF/UA-1, vérifié par veraPDF)
-- [ ] **v0.6** — Génération automatique de plans tactiles (STL)
+- [x] **v0.6** — Plans tactiles en relief à imprimer en 3D (STL), avec légende et écarts de l'audit
+- [ ] **v0.7** — Plans visuels tirés de la maquette (contrastés, agrandissables, mêmes numéros que le plan tactile)
+- [ ] **v0.8** — Lecture de plans existants : PDF vectoriel et DXF d'abord, puis plans scannés et photos
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
 - [ ] **v1.x** — Premier prototype matériel publié (mètre tactile)
 

@@ -5,6 +5,102 @@ Toutes les versions notables de ce projet sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et
 le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.6.0] — 2026-10-30
+
+### Ajouté
+
+- **Plan tactile en relief** : `plan_tactile.py` écrit un fichier STL par
+  niveau, à imprimer en 3D, et une légende en Markdown (ou en PDF accessible
+  avec `--pdf`, vérifié par veraPDF s'il est installé). Coupe à 0,50 m du sol : murs en relief de 3 mm, fenêtres et
+  garde-corps à 1,5 mm, portes ouvertes dans le mur, triangle devant les
+  portes vers l'extérieur, escaliers en stries parallèles aux marches (au
+  niveau de départ et à celui d'arrivée), rampes en relief qui suit leur
+  altitude, ascenseurs en plateau, numéros des locaux en braille français
+  intégral, titre, flèche du nord et barre d'échelle. Coin coupé en haut à
+  gauche. La légende dit ce qui n'a pas pu aller sur la plaque.
+- Avec `--neuf` ou `--existant`, l'audit est lancé et chaque élément non
+  conforme reçoit un dôme ; la légende donne ses constats, dans l'ordre où la
+  main rencontre les dômes.
+- Échelle choisie pour que le niveau tienne sur la plaque (`--plateau`,
+  200 × 200 mm par défaut), ou imposée (`--echelle`), le niveau étant alors
+  coupé en parties. La légende conseille une échelle quand trop de locaux
+  n'ont pas pu recevoir leur numéro.
+- **Éprouvette** (`--eprouvette`) : plaque d'essai des hauteurs de murs,
+  passages, points braille, écart et hauteur des stries, à toucher avant le
+  premier plan ; `--hauteur-murs`, `--hauteur-stries` et `--hauteur-points`
+  règlent ensuite le plan.
+- `PLAN_TACTILE.md` : ce qui est dessiné, chaque dimension avec sa source
+  (ISO 17049, ISO 19028, BANA, UKAAF, étude de Kaplan et Pyayt) et ce qui
+  reste à valider en touchant une plaque.
+- `requirements-plan.txt` (manifold3d, shapely, numpy) ; tests
+  `tests/test_plan_tactile.py`, braille comparé à liblouis.
+
+### Corrigé après une relecture indépendante
+
+Un agent qui n'avait pas écrit le code l'a relu et a reproduit 14 défauts,
+la plupart sur les maquettes publiques. Chacun a maintenant son test.
+
+- Escaliers sur le mauvais niveau, ou absents de leur niveau d'arrivée quand
+  ils s'arrêtent quelques centimètres sous lui (Duplex, Schultz, Clinic) :
+  une volée est dessinée là d'où elle part (« monte ») et là où elle arrive
+  (« descend »), dans l'ordre où on la prend.
+- Escaliers, rampes et ascenseurs trop petits pour l'échelle supprimés sans
+  rien dire (Clinic, Esplanades) : la légende les nomme.
+- Triangles d'entrée absents (marge trop étroite autour du bâtiment) ou
+  posés de l'autre côté d'un mur (Clinic) : le triangle reste dehors, sans
+  mur entre lui et sa porte ; il peut déborder sur les marges ; le titre ou
+  la barre d'échelle s'écartent pour lui ; les portes sans triangle sont
+  comptées. Le dessin est centré sur la plaque.
+- Dômes d'écart posés dans le local voisin ou hors du bâtiment (Duplex) : le
+  dôme reste dans le local de l'élément, ou n'est pas posé, et la légende le
+  dit.
+- Rampe d'un seul tenant qui tourne (en L, en demi-tour) mal lue : le relief
+  suit l'altitude de chaque pan de la rampe.
+- Stries d'escalier dans le mauvais sens quand le sens de montée n'est pas
+  trouvé : elles suivent le nez des marches.
+- Porte dans un mur épais non percé restée fermée : le passage traverse
+  toute l'épaisseur du mur.
+- Coupe d'un élément fait de plusieurs solides qui se chevauchent : une
+  partie de la matière disparaissait (fenêtres de la Duplex, cloisons de la
+  BuildingBIMModel).
+- Niveaux au même placement, distingués seulement par Elevation, et maquette
+  sans niveau : plus de « Aucun niveau à dessiner ».
+- Reliefs épaissis de 0,06 à 0,14 mm par côté : maintenant de 0,02 à 0,05 mm
+  (passages de l'éprouvette : 2,92, 4,93 et 7,94 mm pour 3, 5 et 8 mm).
+- Points des noms changés en virgules (« R.1 » devenait « R,1 ») ; noms de
+  la maquette qui pouvaient ajouter un faux titre ou un lien à la légende.
+  Même protection pour le rapport d'audit (`texte_md`).
+- Fichier IFC vide ou illisible : message d'erreur au lieu d'une trace
+  Python. Les plaques d'un essai précédent dans le même dossier sont
+  retirées.
+- `--pdf` : la légende PDF est vérifiée par veraPDF, comme le rapport d'audit.
+- Documentation : trois phrases disaient plus que leurs sources (l'étude de
+  Kaplan et Pyayt sur le passage de porte et sur la rampe, l'arrêté du
+  20 avril 2017 sur le relief). Corrigées ; l'étude trouvant trop bas les
+  codages d'escalier de 1 et 2 mm, l'éprouvette essaie aussi la hauteur des
+  stries.
+
+### Essais sur des maquettes réelles
+
+- Huit maquettes publiques (Revit, ArchiCAD ; IFC2X3 et IFC4), 31 plaques,
+  toutes fermées, avant comme après les corrections de la relecture ; trois
+  découpées par PrusaSlicer 2.7.2 sans erreur (3 h 19 à 5 h 46, 23 à 38 g de
+  PLA en couches de 0,12 mm).
+- Erreurs trouvées et corrigées en route : fenêtres sans géométrie qui
+  laissaient des trous pareils à des portes ; triangles d'entrée sur des
+  portes de sas que Revit dit extérieures ; poteaux réduits à des picots
+  pareils à du braille ; sens de montée en diagonale sur des volées droites ;
+  arêtes partagées par quatre faces là où deux reliefs se touchaient.
+
+### Pas encore fait
+
+- Aucune plaque n'a encore été imprimée ni lue par une personne aveugle : les
+  hauteurs marquées « à valider » le restent, celle des stries d'escalier en
+  premier.
+- À l'échelle d'une seule plaque, beaucoup de locaux n'ont pas leur numéro et
+  beaucoup de dômes d'écart n'ont pas de place ; la légende le dit et
+  propose une échelle plus grande.
+
 ## [0.5.0] — 2026-10-30
 
 ### Ajouté

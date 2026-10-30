@@ -12,3 +12,5 @@ venv/
 *.bcfzip
 .pytest_cache/
 test_house_non_conforme.ifc
+*_plan_tactile/
+eprouvette_plan_tactile.*

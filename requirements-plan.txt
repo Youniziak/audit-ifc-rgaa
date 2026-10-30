@@ -1,0 +1,7 @@
+# Plan tactile (plan_tactile.py)
+# Versions essayées : manifold3d 3.5.4, shapely 2.2, numpy 2.5.
+# Termux : non essayé ; manifold3d n'a pas de paquet pour Android.
+ifcopenshell>=0.8.0
+manifold3d>=3.0
+shapely>=2.0
+numpy>=1.24

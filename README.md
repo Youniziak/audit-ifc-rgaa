@@ -55,7 +55,7 @@ reality.
 
 `audit-ifc-rgaa` is a complete pipeline with two parts:
 
-### Software part — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`
+### Software part — `audit_ifc_rgaa.py`, `comparaison_terrain.py`, `bcf_export.py`, `plan_tactile.py`
 
 - Parses a project's IFC file
 - Automatically checks compliance with the French regulation the auditor
@@ -67,6 +67,8 @@ reality.
 - Compares declared values against on-site measurements (JSON file)
 - Exports discrepancies in the standard BCF 2.1 format, exchangeable with Revit,
   ArchiCAD, BIMcollab, Solibri, BlenderBIM
+- Produces a raised tactile floor plan of each level, for 3D printing, with
+  the audit's findings marked by a dome on request
 
 ### Hardware part — the `hardware/` folder
 
@@ -134,7 +136,8 @@ pip install -r requirements.txt
 ```
 
 Dependency: IfcOpenShell (LGPL). For the accessible PDF (`--pdf` option):
-`pip install -r requirements-pdf.txt`.
+`pip install -r requirements-pdf.txt`. For the tactile plan:
+`pip install -r requirements-plan.txt`.
 
 ## Quick start
 
@@ -195,13 +198,47 @@ The export has not yet been tried on Termux. Untested leads:
 `pkg install pango python-pillow ttf-dejavu`, then
 `pip install -r requirements-pdf.txt` (pip will have to build cffi).
 
-### 4. Regenerate the test IFC file
+### 4. Tactile floor plan for 3D printing
+
+```bash
+pip install -r requirements-plan.txt
+python3 plan_tactile.py exemples/test_house.ifc
+```
+
+Writes one STL file per level and a Markdown key (readable with a screen
+reader) into `exemples/test_house_plan_tactile/`. On the plate: raised
+walls, lower raised windows, doors as gaps in the wall, stairs as ridges,
+ramps as a sloping surface, lifts as a plateau, room numbers in French
+braille. The key gives each room's name, the symbols, the scale and the
+direction of every stair and ramp, and says what could not fit on the plate
+at that scale (a stair too small, a dome with no room left, a door without
+its triangle).
+
+- `--neuf` or `--existant`: also runs the audit and marks every
+  non-compliant element with a raised dome; the key lists the findings.
+- `--echelle 100`: forces the scale; a level that is too large is split
+  across several plates. Without it, the tool takes the largest scale at
+  which the level fits on one plate, and the key suggests a scale when too
+  many rooms could not get their number.
+- `--plateau 250x210`: maximum plate size in mm (200 × 200 by default).
+- `--eprouvette`: a test plate (wall heights, door gaps, braille dot heights,
+  stair ridge spacing and height) to print and touch before the first plan;
+  `--hauteur-murs`, `--hauteur-stries` and `--hauteur-points` then adjust
+  the plan.
+- `--pdf`: the key also as an accessible PDF, checked with veraPDF when it is installed (as for the audit).
+
+The dimensions, their sources (ISO 17049, ISO 19028, BANA) and what still
+has to be checked by touch are in [PLAN_TACTILE.md](PLAN_TACTILE.md)
+(French). A tactile plan is not required by the French regulations: it is an
+orientation aid, or a working tool for the auditor. Not yet tried on Termux.
+
+### 5. Regenerate the test IFC file
 
 ```bash
 python3 generer_exemple_espaces.py
 ```
 
-### 5. Run the tests
+### 6. Run the tests
 
 ```bash
 pip install pytest
@@ -248,17 +285,20 @@ audit-ifc-rgaa/
 ├── README.md                    This document (English)
 ├── README.fr.md                 French version
 ├── CHANGELOG.md                 Version log
-├── VERSION                      Current version (0.5.0)
+├── VERSION                      Current version (0.6.0)
 ├── REFERENTIEL.md               Applied thresholds, article by article, with sources
+├── PLAN_TACTILE.md              Tactile plan: dimensions, sources, choices to validate
 ├── LICENSE                      GPL-3.0 for the code
 ├── requirements.txt             Python dependencies
 ├── requirements-pdf.txt         PDF export dependencies (--pdf)
+├── requirements-plan.txt        Tactile plan dependencies
 │
 ├── audit_ifc_rgaa.py            Main module — IFC compliance audit
 ├── referentiels.py              Thresholds of both regulations (new / existing)
 ├── comparaison_terrain.py       BIM ↔ on-site measurement comparison
 ├── bcf_export.py                BCF 2.1 file generation
 ├── pdf_accessible.py            Tagged PDF report (PDF/UA-1)
+├── plan_tactile.py              Raised tactile plan (STL) and key
 ├── generer_exemple_espaces.py   Test IFC generation helper
 │
 ├── tests/                       Tests (python3 -m pytest tests/)
@@ -307,7 +347,9 @@ Standards used:
 - [x] v0.4.2 — Ramps (length, resting landings) and door thresholds
 - [x] v0.4.3 — Stair width, step measurements from geometry
 - [x] v0.5 — Accessible PDF export (tagged PDF/UA-1, checked with veraPDF)
-- [ ] v0.6 — Automatic tactile floor-plan generation (STL)
+- [x] v0.6 — Raised tactile floor plans for 3D printing (STL), with a key and the audit's findings
+- [ ] v0.7 — Visual floor plans from the model (high contrast, zoomable, same numbers as the tactile plan)
+- [ ] v0.8 — Reading existing plans: vector PDF and DXF first, then scanned plans and photos
 - [ ] v1.0 — IndoorGML graphs for accessible indoor guidance
 - [ ] v1.x — First published hardware prototype (tactile ruler)
 

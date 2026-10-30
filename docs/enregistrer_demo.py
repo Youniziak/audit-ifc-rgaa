@@ -10,7 +10,7 @@ commande de COMMANDES, puis remplace dans la page les commandes, leurs
 sorties, la version et la date. Aucune sortie n'est écrite à la main.
 
 Lancer depuis n'importe où :  python3 docs/enregistrer_demo.py
-Il faut ifcopenshell, pytest, weasyprint et markdown installés ; si la
+Il faut ifcopenshell, pytest, weasyprint, markdown et manifold3d installés ; si la
 commande verapdf est dans le PATH, la démo montre aussi la vérification
 PDF/UA-1 du rapport.
 
@@ -45,6 +45,7 @@ COMMANDES = [
     ("cat exemples/test_erp_avec_espaces_audit.md", None, 55, 1200),
     ("python3 comparaison_terrain.py exemples/test_house.ifc exemples/mesures_exemple.json"
      " --existant --bcf retours_architecte.bcfzip", None, 220, 1000),
+    ("python3 plan_tactile.py exemples/test_house.ifc --existant", None, 220, 1000),
     ("python3 -m pytest tests/ -q", None, 120, 0),
 ]
 

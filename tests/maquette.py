@@ -227,15 +227,16 @@ class Maquette:
 
     def escalier_dessine(self, marches: int, hauteur: float, giron: float,
                          largeur: float, angle_deg: float = 0.0, nom: str = "Escalier",
-                         classe: str = "IfcStair"):
-        """Volée droite de `marches` marches, en dents de scie, sans propriétés."""
+                         classe: str = "IfcStair", origine=(0.0, 0.0, 0.0)):
+        """Volée droite de `marches` marches, en dents de scie, sans propriétés.
+        Elle part de `origine` et s'étend sur sa largeur à droite du sens de la montée."""
         points = [(0.0, 0.0)]
         for i in range(marches):
             points += [(i * giron, (i + 1) * hauteur), ((i + 1) * giron, (i + 1) * hauteur)]
         points.append((marches * giron, 0.0))
         a = math.radians(angle_deg)
         return self.objet_profils(
-            classe, [((0.0, 0.0, 0.0), (math.cos(a), math.sin(a)), points, largeur)], nom)
+            classe, [(tuple(origine), (math.cos(a), math.sin(a)), points, largeur)], nom)
 
     def objet_profils(self, classe: str, pieces, nom: str):
         """Objet d'une classe IFC donnée, fait de profils extrudés (voir rampe_profils)."""
@@ -372,6 +373,59 @@ class Maquette:
         ifcopenshell.api.spatial.assign_container(
             self.model, products=[element], relating_structure=self.etage
         )
+
+    # ── Murs, baies, menuiseries, poteaux (plans tactiles) ─────────────────
+
+    def boite(self, classe: str, nom: str, x0: float, y0: float, z0: float,
+              dx: float, dy: float, dz: float, ranger: bool = True):
+        """Élément en forme de boîte, de (x0, y0, z0) à (x0+dx, y0+dy, z0+dz)."""
+        objet = self._creer(classe, nom)
+        objet.Representation = self._boite(dx, dy, dz)
+        objet.ObjectPlacement = self.model.create_entity(
+            "IfcLocalPlacement",
+            RelativePlacement=self.model.create_entity(
+                "IfcAxis2Placement3D",
+                Location=self.model.create_entity(
+                    "IfcCartesianPoint", Coordinates=(x0, y0 + dy, z0)),
+            ),
+        )
+        if ranger:
+            self._ranger_contenu(objet)
+        return objet
+
+    def mur(self, x0: float, y0: float, x1: float, y1: float,
+            epaisseur: float = 0.20, hauteur: float = 2.70, nom: str = "Mur"):
+        """Mur droit, horizontal ou vertical, centré sur la ligne (x0, y0)–(x1, y1)."""
+        if y0 == y1:
+            return self.boite("IfcWall", nom, min(x0, x1), y0 - epaisseur / 2, 0.0,
+                              abs(x1 - x0), epaisseur, hauteur)
+        return self.boite("IfcWall", nom, x0 - epaisseur / 2, min(y0, y1), 0.0,
+                          epaisseur, abs(y1 - y0), hauteur)
+
+    def baie(self, mur, x0: float, y0: float, z0: float, dx: float, dy: float, dz: float,
+             remplissage=None):
+        """Ouverture dans un mur (IfcOpeningElement), remplie ou non."""
+        ouverture = self.boite("IfcOpeningElement", "Baie", x0, y0, z0, dx, dy, dz, ranger=False)
+        self.model.create_entity(
+            "IfcRelVoidsElement", GlobalId=ifcopenshell.guid.new(),
+            RelatingBuildingElement=mur, RelatedOpeningElement=ouverture,
+        )
+        if remplissage is not None:
+            self.model.create_entity(
+                "IfcRelFillsElement", GlobalId=ifcopenshell.guid.new(),
+                RelatingOpeningElement=ouverture, RelatedBuildingElement=remplissage,
+            )
+        return ouverture
+
+    def porte_boite(self, x0: float, y0: float, dx: float, dy: float, largeur: float,
+                    exterieure: bool = False, nom: str = "Porte"):
+        """Porte avec une géométrie (boîte de dx × dy, 2,10 m de haut)."""
+        porte = self.boite("IfcDoor", nom, x0, y0, 0.0, dx, dy, 2.10)
+        porte.OverallWidth = largeur
+        porte.OverallHeight = 2.10
+        pset = ifcopenshell.api.pset.add_pset(self.model, product=porte, name="Pset_DoorCommon")
+        ifcopenshell.api.pset.edit_pset(self.model, pset=pset, properties={"IsExternal": exterieure})
+        return porte
 
     def _placement(self, x: float, y: float, direction=(1.0, 0.0, 0.0)):
         return self.model.create_entity(
