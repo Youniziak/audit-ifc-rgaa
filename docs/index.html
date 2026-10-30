@@ -265,6 +265,7 @@
   .bp-crit { margin: 0 0 0.6rem; font-size: 0.98rem; color: rgba(255,255,255,.82); }
   .bp-val { margin: auto 0 0; font-family: var(--font-mono); font-weight: 700; font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.1rem); letter-spacing: -0.01em; color: #fff; }
   .bp-val + .bp-val { margin-top: 0.2rem; }
+  .bp-val--dim { font-size: clamp(1.1rem, 0.95rem + 0.7vw, 1.45rem); white-space: nowrap; }
   .bp-tag { display: inline-block; min-width: 6.8em; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); vertical-align: middle; }
   .note { margin-top: 1.75rem; font-size: 0.98rem; max-width: 48rem; padding-left: 1rem; border-left: 3px solid var(--amber); }
   .print .note { color: rgba(255,255,255,.85); }
@@ -562,22 +563,22 @@
             <p class="bp-val"><span class="bp-tag">Tirer</span> ≥ 2,20 m</p>
           </div>
         </li>
-        <li tabindex="0" aria-label="Critère : ascenseur. Un fauteuil roulant occupé doit tenir dans la cabine : largeur 0,75 mètre, longueur 1,25 mètre, pour un ERP neuf comme existant.">
+        <li tabindex="0" aria-label="Critère : ascenseur. Un fauteuil roulant occupé, 0,75 mètre sur 1,25 mètre, doit tenir dans la cabine. Sous le type 1 de la norme NF EN 81-70 de 2003, 1 mètre sur 1,25 mètre, la cabine est à vérifier. Pour un ERP existant, le texte admet une exception si la structure du bâtiment l'impose.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <rect class="obj" x="78" y="22" width="84" height="106"/>
             <rect class="faint" x="88" y="26" width="64" height="98"/>
-            <line class="cote" x1="88" y1="142" x2="152" y2="142"/>
-            <line class="cote" x1="88" y1="137" x2="88" y2="147"/>
-            <line class="cote" x1="152" y1="137" x2="152" y2="147"/>
+            <line class="cote" x1="78" y1="142" x2="162" y2="142"/>
+            <line class="cote" x1="78" y1="137" x2="78" y2="147"/>
+            <line class="cote" x1="162" y1="137" x2="162" y2="147"/>
           </svg>
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Ascenseur</p>
-            <p class="bp-crit">Cabine : un fauteuil occupé doit y tenir (les deux textes)</p>
-            <p class="bp-val"><span class="bp-tag">Largeur</span> ≥ 0,75 m</p>
-            <p class="bp-val"><span class="bp-tag">Longueur</span> ≥ 1,25 m</p>
+            <p class="bp-crit">Cabine : le fauteuil occupé doit y tenir. Sous le type&nbsp;1 de la norme NF&nbsp;EN&nbsp;81‑70:2003, à vérifier. Existant : exception si la structure l'impose.</p>
+            <p class="bp-val bp-val--dim"><span class="bp-tag">Fauteuil</span> 0,75 × 1,25 m</p>
+            <p class="bp-val bp-val--dim"><span class="bp-tag">Type 1</span> 1,00 × 1,25 m</p>
           </div>
         </li>
-        <li tabindex="0" aria-label="Critère : élévateur. Plate-forme en service simple ou opposé : largeur 0,90 mètre, longueur 1,40 mètre, pour un ERP neuf comme existant.">
+        <li tabindex="0" aria-label="Critère : élévateur. Plate-forme d'au moins 0,90 mètre sur 1,40 mètre en service simple ou opposé, 1,10 mètre sur 1,40 mètre en service en angle, pour un ERP neuf comme existant.">
           <svg class="dwg" viewBox="0 0 240 160" aria-hidden="true">
             <line class="obj" x1="30" y1="128" x2="210" y2="128"/>
             <rect class="faint" x="84" y="40" width="72" height="88"/>
@@ -588,9 +589,9 @@
           </svg>
           <div class="bp-data" aria-hidden="true">
             <p class="bp-el">Élévateur</p>
-            <p class="bp-crit">Plate-forme, service simple ou opposé (les deux textes)</p>
-            <p class="bp-val"><span class="bp-tag">Largeur</span> ≥ 0,90 m</p>
-            <p class="bp-val"><span class="bp-tag">Longueur</span> ≥ 1,40 m</p>
+            <p class="bp-crit">Plate-forme, selon le côté d'entrée et de sortie (les deux textes)</p>
+            <p class="bp-val bp-val--dim"><span class="bp-tag">Simple</span> 0,90 × 1,40 m</p>
+            <p class="bp-val bp-val--dim"><span class="bp-tag">En angle</span> 1,10 × 1,40 m</p>
           </div>
         </li>
       </ul>

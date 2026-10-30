@@ -133,41 +133,91 @@ de cabine.** Ils fixent en revanche :
   établies leurs exigences (annexe 1, identique dans les deux textes) ;
 - la plate-forme des appareils élévateurs verticaux : dimension utile de
   0,90 × 1,40 m en service simple ou opposé, 1,10 × 1,40 m en service en angle
-  (identique dans les deux textes).
+  (mêmes chiffres dans les deux textes ; celui de 2014 écrit « dimension utile
+  minimale »).
 
-Ce que fait l'outil (depuis la 0.4.1) :
+**Exception propre à l'existant** (2014, 7.2, point 3) : lorsque des éléments
+participant à la solidité du bâtiment empêchent d'appliquer ces exigences, au
+moins un ascenseur par batterie respecte des exigences de signalisation
+(signalisation palière et en cabine, demande de secours).
 
-- Il reconnaît les ascenseurs modélisés en `IfcTransportElement` de type
-  `ELEVATOR`, et les élévateurs à leur nom (« élévateur », « plate-forme
-  élévatrice », « platform lift »…). Les monte-charges, reconnus à leur nom,
-  sont exclus : ils ne transportent pas le public.
+### Ce que fait l'outil (depuis la 0.4.1)
+
+- Il reconnaît les appareils (`IfcTransportElement`) par leur nom, en mots
+  entiers, puis par leur type :
+  - monte-charges (« monte-charge », « monte-plats », « goods lift »,
+    « freight » sans mention de passagers…) : exclus, ils ne transportent pas
+    le public ;
+  - élévateurs (« élévateur », « plate-forme élévatrice », « platform
+    lift »…) ;
+  - ascenseurs : type `ELEVATOR`, ou nom contenant « ascenseur »,
+    « elevator » ou « lift » ;
+  - escaliers mécaniques et tapis roulants : ignorés ;
+  - les autres appareils sont signalés comme non reconnus.
 - Il lit la largeur et la profondeur utiles déclarées dans
   `Pset_TransportElementElevator` (`ClearWidth`, `ClearDepth`), sur l'élément
   ou sur son type. Il n'utilise pas la géométrie, qui peut représenter la
   cabine, la gaine ou les deux. Sans ces valeurs, l'appareil n'est pas
   contrôlé, et le rapport le dit.
-- Cabine où le gabarit de 0,75 × 1,25 m ne tient pas : bloquante.
+- Cabine où le gabarit de 0,75 × 1,25 m ne tient pas : bloquante pour le neuf ;
+  majeure pour l'existant, avec l'exception ci-dessus à vérifier.
 - Cabine plus petite que 1,00 × 1,25 m : majeure, à vérifier. Ce chiffre est
-  celui du type 1 de la norme NF EN 81-70, la plus petite cabine qu'elle prévoit
-  pour un fauteuil roulant. Il ne vient pas des arrêtés, et la norme est
-  payante : l'outil l'utilise comme repère, pas comme minimum réglementaire.
+  celui du type 1 de la norme NF EN 81-70:2003 (tableau 1), la plus petite
+  cabine qu'elle prévoit pour un fauteuil roulant. Il ne vient pas des arrêtés :
+  l'outil l'utilise comme repère, pas comme minimum réglementaire. Les arrêtés
+  citent l'édition de 2003 ; la norme a été révisée depuis, l'outil s'en tient
+  à l'édition citée.
 - Plate-forme d'élévateur sous 0,90 × 1,40 m : bloquante. Entre 0,90 et
   1,10 m de large, conforme en service simple ou opposé ; le rapport rappelle
   l'exigence du service en angle.
 - L'orientation n'est pas vérifiée : une cabine déclarée 1,25 × 1,00 m est
   traitée comme 1,00 × 1,25 m.
-- Bâtiment à au moins deux niveaux occupés sans ascenseur : un ascenseur est
-  obligatoire si l'effectif admis aux étages supérieurs ou inférieurs atteint
-  cinquante personnes, ou si certaines prestations ne peuvent pas être offertes
-  au rez-de-chaussée, avec des exceptions (enseignement, et pour l'existant
-  certains établissements de 5e catégorie, restaurants et hôtels). Le BIM ne
-  donne pas l'effectif : l'outil le signale dans les limites du rapport, sans
-  en faire une non-conformité. Un escalier mécanique ne compte pas comme
-  ascenseur.
+- Bâtiment à au moins deux niveaux occupés (étages contenant un espace ou une
+  porte) sans ascenseur : signalé dans les limites du rapport, sans en faire
+  une non-conformité, car l'obligation dépend de l'effectif, que le BIM ne
+  donne pas. Un escalier mécanique ne compte pas comme ascenseur.
 
-Non vérifié : desserte de tous les étages ouverts au public, commandes,
-signalisation, position des portes de cabine ; pour les élévateurs, type
-d'appareil selon la hauteur de course, porte ou portillon, commandes.
+### Quand un ascenseur est-il obligatoire ?
+
+Dans les deux textes, si l'effectif admis aux étages supérieurs ou inférieurs
+atteint ou dépasse cinquante personnes, ou s'il ne l'atteint pas et que
+certaines prestations ne peuvent pas être offertes au rez-de-chaussée. Puis :
+
+- **Neuf** : le seuil passe à cent personnes pour les établissements
+  d'enseignement. Le texte admet un élévateur « à l'intérieur d'un
+  établissement » (3° a), sans dire s'il peut tenir lieu d'ascenseur
+  obligatoire.
+- **Existant** :
+  - le seuil passe à cent personnes pour les établissements de 5e catégorie
+    lorsqu'il existe des contraintes liées à la présence d'éléments participant
+    à la solidité du bâtiment, et pour les établissements d'enseignement quelle
+    que soit leur catégorie ;
+  - restaurant comportant un étage : pas d'ascenseur exigé si l'effectif admis
+    à cet étage est inférieur à 25 % de la capacité totale et que l'ensemble
+    des prestations est offert à l'identique dans l'espace principal
+    accessible ;
+  - hôtels existants classés 1, 2 ou 3 étoiles (ou non classés, de gamme
+    équivalente), de trois étages au plus en sus du rez-de-chaussée, en cas de
+    contraintes liées à la structure : exonérés si les prestations et les
+    chambres adaptées sont accessibles au rez-de-chaussée, avec une qualité
+    d'usage équivalente ;
+  - un élévateur peut être installé à la place d'un ascenseur lorsqu'un plan
+    de prévention du risque inondation ou la topographie empêche un
+    cheminement ou une entrée accessibles, et à l'intérieur d'un établissement
+    situé dans un cadre bâti existant (point 4), pour une hauteur de course de
+    3,20 m au plus ; hors de ces cas, il faut une dérogation (article
+    R. 111-19-10 du code de la construction et de l'habitation).
+
+L'outil ne vérifie aucune de ces conditions : il renvoie à ce paragraphe.
+
+### Non vérifié
+
+Ascenseurs : desserte de tous les étages ouverts au public, commandes,
+signalisation, position des portes de cabine, libre accès. Élévateurs : porte
+ou portillon (0,90 m de largeur nominale, soit 0,83 m de passage utile), charge
+(250 kg/m²), type d'appareil selon la hauteur de course (0,50 m, 1,20 m,
+3,20 m), commandes, libre accès. Pour l'existant, le niveau décalé d'au moins
+1,20 m, que le texte de 2014 compte comme un étage.
 
 ## Autres espaces de l'annexe 2
 
@@ -185,3 +235,4 @@ d'appareil selon la hauteur de course, porte ou portillon, commandes.
 - [Arrêté du 20 avril 2017, texte consolidé](https://www.legifrance.gouv.fr/loda/id/JORFTEXT000034485459/)
 - [Arrêté du 20 avril 2017, article 7-1 (escaliers)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000034485956)
 - [Arrêté du 20 avril 2017, article 7-2 (ascenseurs et élévateurs)](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000038437153)
+- [NF EN 81-70:2003, tableau 1 (types de cabine), reproduit par l'AFEM](https://www.afem.com/wp-content/uploads/2014/04/norme-mc.pdf) — source du repère de 1,00 × 1,25 m

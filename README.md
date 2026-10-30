@@ -189,7 +189,7 @@ buildings (arrêté of 8 December 2014). Details and sources:
 | Corridors, width | 1.40 m (1.20 m at a localized narrowing) | 1.20 m (0.90 m at a localized narrowing) | Art. 6, referring to Art. 2 |
 | Sanitary, turning space | Ø 1.50 m, inside or else in front of the door | Ø 1.50 m, inside or else in front of the door | Art. 12 and Annex 2 |
 | Door manoeuvring space | 1.70 m on the push side, 2.20 m on the pull side | same | Art. 10 and Annex 2 |
-| Elevators, car | an occupied wheelchair (0.75 × 1.25 m) must fit; below 1.00 × 1.25 m (type 1 of standard NF EN 81-70), to be checked | same | Art. 7-2 (new), 7.2 (existing), Annex 1 |
+| Elevators, car | an occupied wheelchair (0.75 × 1.25 m) must fit; below 1.00 × 1.25 m (type 1 of standard NF EN 81-70:2003), to be checked | same, except under structural constraints: to be checked | Art. 7-2 (new), 7.2 (existing), Annex 1 |
 | Platform lifts, platform | 0.90 × 1.40 m (1.10 × 1.40 m for corner access) | same | Art. 7-2 (new), 7.2 (existing) |
 
 ## What is not (yet) checked

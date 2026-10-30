@@ -14,14 +14,18 @@ le projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   la norme NF EN 81-70:2003, « réputée satisfaire » à leurs exigences.
   L'outil lit la largeur et la profondeur utiles déclarées
   (`Pset_TransportElementElevator`) : une cabine où un fauteuil roulant
-  occupé (0,75 × 1,25 m, annexe 1) ne tient pas est bloquante ; une cabine
-  plus petite que le type 1 de la norme (1,00 × 1,25 m) est majeure, à
-  vérifier.
+  occupé (0,75 × 1,25 m, annexe 1) ne tient pas est bloquante pour le neuf,
+  majeure pour l'existant (le texte de 2014 admet une exception en cas de
+  contraintes de structure) ; une cabine plus petite que le type 1 de la
+  norme NF EN 81-70:2003 (1,00 × 1,25 m) est majeure, à vérifier.
 - **Élévateurs** : plate-forme de 0,90 × 1,40 m au moins, 1,10 × 1,40 m en
   service en angle (même article).
 - Bâtiment à plusieurs niveaux occupés sans ascenseur modélisé : signalé
   dans les limites du rapport, l'obligation dépendant de l'effectif.
-- Monte-charges reconnus par leur nom et exclus du contrôle.
+- Appareils reconnus par leur nom (mots entiers) puis par leur type ;
+  monte-charges exclus, appareils non reconnus signalés.
+- `REFERENTIEL.md` détaille quand un ascenseur est obligatoire, texte par
+  texte, avec ses seuils et ses cas particuliers.
 - Tests `tests/test_ascenseurs.py`.
 
 ## [0.4.0] — 2026-10-30

@@ -173,7 +173,7 @@ Seuils « neuf » (arrêté du 20 avril 2017) puis « existant » (arrêté du
 | Couloirs, largeur | 1,40 m (1,20 m en rétrécissement ponctuel) | 1,20 m (0,90 m en rétrécissement ponctuel) | Art. 6, renvoi à l'art. 2 |
 | Sanitaires, demi-tour | Ø 1,50 m, dedans ou à défaut devant la porte | Ø 1,50 m, dedans ou à défaut devant la porte | Art. 12 et annexe 2 |
 | Espace de manœuvre de porte | 1,70 m côté où l'on pousse, 2,20 m côté où l'on tire | identique | Art. 10 et annexe 2 |
-| Ascenseurs, cabine | un fauteuil roulant occupé (0,75 × 1,25 m) doit y tenir ; en deçà de 1,00 × 1,25 m (type 1 de la norme NF EN 81-70), à vérifier | identique | Art. 7-2 (neuf), 7.2 (existant), annexe 1 |
+| Ascenseurs, cabine | un fauteuil roulant occupé (0,75 × 1,25 m) doit y tenir ; en deçà de 1,00 × 1,25 m (type 1 de la norme NF EN 81-70:2003), à vérifier | idem, sauf contraintes de structure : à vérifier | Art. 7-2 (neuf), 7.2 (existant), annexe 1 |
 | Élévateurs, plate-forme | 0,90 × 1,40 m (1,10 × 1,40 m en service en angle) | identique | Art. 7-2 (neuf), 7.2 (existant) |
 
 ## Ce qui n'est pas (encore) vérifié

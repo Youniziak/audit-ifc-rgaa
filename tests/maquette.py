@@ -128,6 +128,17 @@ class Maquette:
         )
         self.espace(f"Bureau {nom}", 0.0, 0.0, 4.0, 4.0)
 
+    def niveau_toiture(self, nom: str = "Toiture") -> None:
+        """Ajoute un étage qui ne contient qu'une dalle (niveau non occupé)."""
+        self.etage = self._creer("IfcBuildingStorey", nom)
+        ifcopenshell.api.aggregate.assign_object(
+            self.model, products=[self.etage], relating_object=self.batiment
+        )
+        dalle = self._creer("IfcSlab", "Dalle de toiture")
+        ifcopenshell.api.spatial.assign_container(
+            self.model, products=[dalle], relating_structure=self.etage
+        )
+
     def transport(self, nom: str, type_transport: str = "ELEVATOR",
                   largeur: float | None = None, profondeur: float | None = None,
                   sur_le_type: bool = False) -> None:

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -759,15 +760,37 @@ def auditer_manoeuvre_portes(ifc_file, scale: float, rapport: RapportAudit) -> N
 #  revanche le gabarit du fauteuil roulant occupé (annexe 1) et la plate-forme
 #  des appareils élévateurs verticaux (article 7.2 ou 7-2).
 
-_MOTS_ELEVATEUR = (
-    "élévateur", "elevateur", "plate-forme élévatrice", "plateforme élévatrice",
-    "platform lift", "wheelchair lift", "monte-personne",
+# Reconnaissance des appareils par leur nom (mots entiers, en minuscules)
+_RE_MONTE_CHARGE = re.compile(
+    r"\bmonte[- ]?(charges?|plats?)\b|\bgoods lifts?\b|\bdumbwaiters?\b|\bfreight\b"
 )
-# Appareils qui ne transportent pas le public : hors du champ de l'article
-_MOTS_MONTE_CHARGE = (
-    "monte-charge", "monte charge", "monte-plat", "monte plat",
-    "goods lift", "freight", "dumbwaiter",
+_RE_PASSAGERS = re.compile(r"\bpassengers?\b|\bpassagers?\b|\bpersonnes?\b")
+_RE_ELEVATEUR = re.compile(
+    r"\b[ée]l[ée]vat(eur|rice)s?\b|\bplate[- ]?formes?\b|\bplatform lifts?\b"
+    r"|\bwheelchair lifts?\b|\bmonte[- ]?personnes?\b"
 )
+_RE_ASCENSEUR = re.compile(r"\bascenseurs?\b|\belevators?\b|\blifts?\b")
+_RE_MECANIQUE = re.compile(
+    r"\bescalators?\b|\bescaliers? m[ée]caniques?\b|\btapis roulants?\b"
+    r"|\btrottoirs? roulants?\b|\bmoving walkways?\b"
+)
+
+
+def _classer_transport(element) -> str:
+    """« monte-charge », « elevateur », « ascenseur », « mecanique » ou « inconnu »."""
+    libelle = _libelle_element(element)
+    type_transport = _type_transport(element)
+    if _RE_MONTE_CHARGE.search(libelle) and not _RE_PASSAGERS.search(libelle):
+        return "monte-charge"
+    if _RE_ELEVATEUR.search(libelle):
+        return "elevateur"
+    if type_transport == "ELEVATOR" or _RE_ASCENSEUR.search(libelle):
+        return "ascenseur"
+    if type_transport in ("ESCALATOR", "MOVINGWALKWAY") or _RE_MECANIQUE.search(libelle):
+        return "mecanique"
+    if type_transport == "CRANEWAY":
+        return "monte-charge"
+    return "inconnu"
 
 
 def _libelle_element(element) -> str:
@@ -804,10 +827,14 @@ def _dimensions_cabine(element, scale: float) -> Optional[tuple[float, float]]:
 
 
 def _niveaux_occupes(ifc_file) -> int:
-    """Nombre d'étages contenant au moins un élément ou un espace."""
+    """Nombre d'étages contenant au moins un espace ou une porte.
+
+    Un étage qui ne contient qu'une dalle de toiture ou des fondations n'est
+    pas un niveau occupé."""
     return sum(
         1 for etage in ifc_file.by_type("IfcBuildingStorey")
-        if ifcopenshell.util.element.get_decomposition(etage)
+        if any(e.is_a("IfcSpace") or e.is_a("IfcDoor")
+               for e in ifcopenshell.util.element.get_decomposition(etage))
     )
 
 
@@ -819,15 +846,17 @@ def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
     type_1 = CABINE_NF_EN_81_70_TYPE_1
 
     ascenseurs, elevateurs = [], []
-    monte_charges = 0
+    monte_charges = inconnus = 0
     for element in ifc_file.by_type("IfcTransportElement"):
-        libelle = _libelle_element(element)
-        if any(m in libelle for m in _MOTS_MONTE_CHARGE):
-            monte_charges += 1
-        elif any(m in libelle for m in _MOTS_ELEVATEUR):
-            elevateurs.append(element)
-        elif _type_transport(element) == "ELEVATOR":
+        classe = _classer_transport(element)
+        if classe == "ascenseur":
             ascenseurs.append(element)
+        elif classe == "elevateur":
+            elevateurs.append(element)
+        elif classe == "monte-charge":
+            monte_charges += 1
+        elif classe == "inconnu":
+            inconnus += 1
 
     sans_dimensions = 0
     controles_asc = controles_elev = angle_a_verifier = 0
@@ -841,6 +870,7 @@ def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
         petit, grand = sorted(dims)
         cabine = f"{metres(dims[0])} × {metres(dims[1])}"
         nom, gid = _nom_lisible(asc), asc.GlobalId
+        note = f" {ref.note_ascenseur}" if ref.note_ascenseur else ""
         if petit < gabarit[0] or grand < gabarit[1]:
             rapport.non_conformites.append(NonConformite(
                 element_type="Ascenseur", nom=nom, global_id=gid,
@@ -852,9 +882,11 @@ def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
                 exigence=(
                     "Tous les ascenseurs peuvent être utilisés par les personnes "
                     "handicapées ; les exigences sont établies sur la base d'un "
-                    f"fauteuil roulant occupé de {metres(gabarit[0])} × {metres(gabarit[1])}."
+                    f"fauteuil roulant occupé de {metres(gabarit[0])} × "
+                    f"{metres(gabarit[1])}.{note}"
                 ),
-                severite="bloquante",
+                # Sans exception dans le texte, la cabine est inutilisable en fauteuil.
+                severite="majeure" if ref.note_ascenseur else "bloquante",
             ))
         elif petit < type_1[0] or grand < type_1[1]:
             rapport.non_conformites.append(NonConformite(
@@ -862,19 +894,21 @@ def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
                 article=ref.article(art),
                 constat=(
                     f"Cabine de {cabine}, plus petite que le type 1 de la norme "
-                    f"NF EN 81-70 ({metres(type_1[0])} × {metres(type_1[1])})."
+                    f"NF EN 81-70:2003 ({metres(type_1[0])} × {metres(type_1[1])})."
                 ),
                 exigence=(
                     "La norme NF EN 81-70:2003 est réputée satisfaire aux exigences ; "
                     "en deçà de son type 1, l'usage de l'ascenseur par une personne en "
-                    "fauteuil roulant est à vérifier."
+                    f"fauteuil roulant est à vérifier.{note}"
                 ),
                 severite="majeure",
             ))
         else:
             rapport.conformites.append(Conformite(
                 element_type="Ascenseur", nom=nom, global_id=gid,
-                constat=f"Cabine de {cabine}, au moins le type 1 de la norme NF EN 81-70.",
+                constat=(
+                    f"Cabine de {cabine}, au moins le type 1 de la norme NF EN 81-70:2003."
+                ),
             ))
 
     for elev in elevateurs:
@@ -915,6 +949,12 @@ def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
             f"{monte_charges} monte-charge(s) exclu(s) du contrôle : appareil(s) "
             "reconnu(s) par son nom comme ne transportant pas le public"
         )
+    if inconnus:
+        rapport.remarques.append(
+            f"{inconnus} appareil(s) de transport (IfcTransportElement) non "
+            "reconnu(s) : ni ascenseur, ni élévateur, ni escalier mécanique d'après "
+            "son type et son nom ; non contrôlé(s)"
+        )
     if sans_dimensions:
         rapport.remarques.append(
             f"Dimensions utiles non renseignées pour {sans_dimensions} ascenseur(s) ou "
@@ -933,15 +973,13 @@ def auditer_ascenseurs(ifc_file, scale: float, rapport: RapportAudit) -> None:
         remarque = (
             f"Aucun ascenseur modélisé pour {niveaux} niveaux occupés : un ascenseur "
             "est obligatoire si l'effectif admis aux étages supérieurs ou inférieurs "
-            "atteint cinquante personnes, ou si certaines prestations ne peuvent pas "
-            f"être offertes au rez-de-chaussée (art. {art}, qui prévoit des exceptions) ; "
-            "effectif et prestations à vérifier"
+            "atteint ou dépasse cinquante personnes, ou s'il ne l'atteint pas et que "
+            "certaines prestations ne peuvent pas être offertes au rez-de-chaussée "
+            f"(art. {art}) ; le texte prévoit d'autres seuils et des cas particuliers, "
+            "détaillés dans REFERENTIEL.md. Effectif et prestations à vérifier"
         )
         if elevateurs:
-            remarque += (
-                ". Un élévateur ne remplace un ascenseur obligatoire que dans les "
-                "cas prévus par le texte"
-            )
+            remarque += f". {ref.note_elevateur}"
         rapport.remarques.append(remarque)
 
 
@@ -1037,8 +1075,9 @@ def generer_rapport_markdown(rapport: RapportAudit) -> str:
     lignes.append(
         "- Ascenseurs : desserte de tous les étages ouverts au public, commandes, "
         "signalisation et position des portes de cabine non vérifiées ; élévateurs : "
-        "type d'appareil selon la hauteur de course, porte ou portillon et commandes "
-        "non vérifiés"
+        "porte ou portillon (0,90 m, soit 0,83 m de passage utile), charge "
+        "(250 kg/m²), type d'appareil selon la hauteur de course (0,50 m, 1,20 m, "
+        "3,20 m), commandes et libre accès non vérifiés"
     )
     for remarque in rapport.remarques:
         lignes.append(f"- {remarque}")
