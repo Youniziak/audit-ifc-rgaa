@@ -223,6 +223,22 @@ class Maquette:
         Chaque morceau : (origine (x, y, z), sens de la montée (dx, dy),
         profil [(abscisse, altitude), …] dans ce sens, largeur). Le profil est
         extrudé sur la largeur, à droite du sens de la montée."""
+        return self.objet_profils("IfcRamp", pieces, nom)
+
+    def escalier_dessine(self, marches: int, hauteur: float, giron: float,
+                         largeur: float, angle_deg: float = 0.0, nom: str = "Escalier",
+                         classe: str = "IfcStair"):
+        """Volée droite de `marches` marches, en dents de scie, sans propriétés."""
+        points = [(0.0, 0.0)]
+        for i in range(marches):
+            points += [(i * giron, (i + 1) * hauteur), ((i + 1) * giron, (i + 1) * hauteur)]
+        points.append((marches * giron, 0.0))
+        a = math.radians(angle_deg)
+        return self.objet_profils(
+            classe, [((0.0, 0.0, 0.0), (math.cos(a), math.sin(a)), points, largeur)], nom)
+
+    def objet_profils(self, classe: str, pieces, nom: str):
+        """Objet d'une classe IFC donnée, fait de profils extrudés (voir rampe_profils)."""
         items = []
         for origine, (dx, dy), points, largeur in pieces:
             pts = [self.model.create_entity("IfcCartesianPoint", Coordinates=c)
@@ -242,16 +258,17 @@ class Maquette:
                 ExtrudedDirection=self.model.create_entity("IfcDirection", DirectionRatios=(0.0, 0.0, 1.0)),
                 Depth=largeur,
             ))
-        rampe = self._creer("IfcRamp", nom)
+        objet = self._creer(classe, nom)
         forme = self.model.create_entity(
             "IfcShapeRepresentation", ContextOfItems=self.body,
             RepresentationIdentifier="Body", RepresentationType="SweptSolid", Items=items,
         )
-        rampe.Representation = self.model.create_entity(
+        objet.Representation = self.model.create_entity(
             "IfcProductDefinitionShape", Representations=[forme])
-        rampe.ObjectPlacement = self._placement(0.0, 0.0)
-        self._ranger_contenu(rampe)
-        return rampe
+        objet.ObjectPlacement = self._placement(0.0, 0.0)
+        if classe != "IfcStairFlight":
+            self._ranger_contenu(objet)
+        return objet
 
     def pente_declaree(self, element, valeur, type_ifc: str = "IfcPlaneAngleMeasure",
                        pset: str = "Pset_RampFlightCommon", propriete: str = "Slope") -> None:

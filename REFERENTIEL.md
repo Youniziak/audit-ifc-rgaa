@@ -46,14 +46,43 @@ Sur Légifrance, l'arrêté de 2017 fait des escaliers un article distinct
 (« Article 7-1 ») ; celui de 2014 les range dans l'article 7, au point 7.1.
 Les rapports suivent la numérotation du texte appliqué.
 
-- **Neuf** : hauteur de marche de 16 cm au plus, giron de 28 cm au moins.
-- **Existant** : hauteur de marche de 17 cm au plus, giron de 28 cm au moins.
-  En l'absence de travaux changeant les dimensions de l'escalier, ses
-  caractéristiques initiales peuvent être conservées : le rapport le rappelle
-  à chaque écart.
+- **Neuf** : hauteur de marche de 16 cm au plus, giron de 28 cm au moins,
+  largeur minimale entre mains courantes de 1,20 m.
+- **Existant** : hauteur de marche de 17 cm au plus, giron de 28 cm au moins,
+  largeur minimale entre mains courantes de 1 m. En l'absence de travaux
+  changeant les dimensions de l'escalier, ses caractéristiques initiales
+  peuvent être conservées : le rapport le rappelle à chaque écart.
 
-La largeur entre mains courantes (1,20 m pour le neuf, 1 m pour l'existant)
-n'est pas encore contrôlée.
+### Ce que fait l'outil (depuis la 0.4.3)
+
+- Un escalier décomposé en volées (`IfcStairFlight`) est contrôlé volée par
+  volée.
+- **Hauteur de marche et giron** : déclarés dans le BIM (attributs de la
+  volée, puis `Pset_StairFlightCommon`, puis `Pset_StairCommon`), ou à défaut
+  mesurés sur la géométrie. Le rapport dit d'où vient chaque valeur.
+- **Mesure sur la géométrie** : les marches sont les faces horizontales
+  tournées vers le haut, regroupées par altitude. Le sens de la montée va de
+  la plus basse à la plus haute ; l'outil retient la plus haute marche, le
+  plus petit giron et la plus petite largeur, perpendiculaire à la montée.
+  Si les marches ne sont pas alignées (volée tournante, escalier en L dans un
+  seul objet), ou si leurs hauteurs ou leurs girons varient, la géométrie
+  n'est pas exploitée : mieux vaut ne rien dire qu'une valeur fausse. Quand
+  une marche porte deux faces horizontales proches (le dessus de la structure
+  et celui du giron posé dessus), seule la plus haute compte.
+- **Essai sur des fichiers réels** : trois maquettes publiques exportées
+  d'ArchiCAD (dépôt opensourceBIM/TestFiles : AC11-FZK-Haus, AC11-Institute,
+  AC90R1-Jasmin-Sun). Leurs sept escaliers sont tournants (hélicoïdal, à trois
+  quarts tournant, à marches balancées) : l'outil ne les mesure pas, et le
+  rapport le dit. C'est sur ces fichiers qu'est apparu le cas des deux faces
+  par marche. Aucune volée droite réelle n'a encore servi d'essai.
+- **Largeur** : l'outil mesure la largeur de la volée, pas celle entre mains
+  courantes, que le BIM ne donne pas. La seconde est au plus égale à la
+  première : une volée plus étroite que le minimum est non conforme à coup
+  sûr (majeure) ; une volée assez large reste à vérifier, les mains courantes
+  réduisant le passage.
+- Escalier sans donnée exploitable : signalé dans les limites du rapport.
+  Jusqu'à la 0.4.2, il était déclaré « bloquant », ce qui confondait une
+  donnée manquante avec un obstacle.
 
 ## Plans inclinés — article 2, repris par l'article 6
 
