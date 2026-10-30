@@ -338,7 +338,7 @@ Standards utilisés :
 - [x] **v0.5** — Export PDF accessible (balisé PDF/UA-1, vérifié par veraPDF)
 - [x] **v0.6** — Plans tactiles en relief à imprimer en 3D (STL), avec légende et écarts de l'audit
 - [ ] **v0.7** — Plans visuels tirés de la maquette (contrastés, agrandissables, mêmes numéros que le plan tactile)
-- [ ] **v0.8** — Lecture de plans existants : PDF vectoriel et DXF d'abord, puis plans scannés et photos
+- [ ] **v0.8** — Lecture de plans existants : PDF vectoriel et DXF d'abord, puis plans scannés et photos, redessinés en maquette IFC après remise à l'échelle sur une cote connue ; mesures à confirmer sur place (comparaison terrain)
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
 - [ ] **v1.x** — Premier prototype matériel publié (mètre tactile)
 
