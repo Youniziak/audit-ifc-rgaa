@@ -201,6 +201,14 @@ symboles et l'échelle, le sens de chaque escalier et de chaque rampe, et dit
 ce qui n'a pas pu aller sur la plaque à cette échelle (escalier trop petit,
 dôme sans place dans son local, porte sans triangle).
 
+Chaque plaque a aussi son **plan visuel** (fichier `.svg`, à côté du `.stl`) :
+la même plaque dessinée en noir sur blanc, qu'on agrandit sans flou (ZoomText,
+loupe, navigateur). Murs en noir, parois basses en gris, numéros des locaux en
+chiffres, braille en points gris, repères d'écart numérotés comme dans la
+légende, flèche sur les rampes vers le haut. La personne qui voit et celle qui
+touche ont ainsi le même plan. La légende montre ces plans, et le PDF de
+`--pdf` aussi, avec un texte de remplacement.
+
 - `--neuf` ou `--existant` : lance aussi l'audit et marque chaque élément non
   conforme d'un dôme en relief ; la légende donne ses constats.
 - `--echelle 100` : impose l'échelle ; un niveau trop grand est coupé en
@@ -273,7 +281,7 @@ automatisé* de chaque rapport généré.
 audit-ifc-rgaa/
 ├── README.md                    Ce document
 ├── CHANGELOG.md                 Journal des versions
-├── VERSION                      Version courante (0.6.1)
+├── VERSION                      Version courante (0.7.0)
 ├── REFERENTIEL.md               Seuils appliqués, article par article, avec sources
 ├── PLAN_TACTILE.md              Plan tactile : dimensions, sources, choix à valider
 ├── PLANS_EXISTANTS.md           Méthode prévue pour lire un plan sans maquette (v0.8)
@@ -288,6 +296,7 @@ audit-ifc-rgaa/
 ├── bcf_export.py                Génération de fichiers BCF 2.1
 ├── pdf_accessible.py            Rapport en PDF balisé (PDF/UA-1)
 ├── plan_tactile.py              Plan tactile en relief (STL) et légende
+├── plan_visuel.py               Plan visuel de chaque plaque (SVG)
 ├── generer_exemple_espaces.py   Helper de génération d'IFC de test
 │
 ├── tests/                       Tests (python3 -m pytest tests/)
@@ -338,7 +347,7 @@ Standards utilisés :
 - [x] **v0.4.3** — Largeur des escaliers, mesures des marches sur la géométrie
 - [x] **v0.5** — Export PDF accessible (balisé PDF/UA-1, vérifié par veraPDF)
 - [x] **v0.6** — Plans tactiles en relief à imprimer en 3D (STL), avec légende et écarts de l'audit
-- [ ] **v0.7** — Plans visuels tirés de la maquette (contrastés, agrandissables, mêmes numéros que le plan tactile)
+- [x] **v0.7** — Plans visuels : chaque plaque dessinée en SVG noir sur blanc, agrandissable, avec les mêmes numéros (et dans la légende PDF)
 - [ ] **v0.8** — Lecture de plans existants : PDF vectoriel et DXF d'abord, puis plans scannés et photos, redessinés en maquette IFC après remise à l'échelle sur une cote connue ; mesures à confirmer sur place (comparaison terrain). Méthode : [PLANS_EXISTANTS.md](PLANS_EXISTANTS.md)
 - [ ] **v1.0** — Graphes IndoorGML pour guidage indoor accessible
 - [ ] **v1.x** — Premier prototype matériel publié (mètre tactile)

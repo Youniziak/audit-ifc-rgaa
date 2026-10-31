@@ -631,6 +631,8 @@ def test_anciennes_plaques_retirees(tmp_path):
     une = generer(m, tmp_path)
     restants = sorted(p.name for p in (tmp_path / "plan").glob("*.stl"))
     assert restants == sorted(p.name for p in une["stl"])
+    vues = sorted(p.name for p in (tmp_path / "plan").glob("*.svg"))
+    assert vues == sorted(p.name for p in une["svg"])
 
 
 def test_eprouvette_passages_proches_de_l_annonce(tmp_path):
@@ -715,3 +717,55 @@ def test_etiquette_braille_seul_en_dernier_recours():
     des = pt.Dessin(100.0, 100.0)
     pt.poser_etiquette(des, "12", "braille", 10.0, 50.0, D)
     assert des.domes and not des.prismes
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Plan visuel (v0.7) : la plaque dessinée en SVG
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _svg(chemin: Path):
+    import xml.etree.ElementTree as ET
+    return ET.parse(chemin).getroot()
+
+
+def test_plan_visuel_pour_chaque_plaque(plan_piece):
+    resume, page, _ = plan_piece
+    des = page[1]
+    assert len(resume["svg"]) == len(resume["stl"])
+    racine = _svg(resume["svg"][0])
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    assert racine.get("role") == "img" and racine.get("lang") == "fr"
+    assert "niveau" in racine.find("s:title", ns).text and racine.find("s:desc", ns).text
+    assert racine.get("viewBox") == f"0 0 {des.largeur:.2f} {des.hauteur:.2f}"
+    # Un point gris par point braille de la plaque, et du noir pour les murs.
+    gris = [c for c in racine.iter("{http://www.w3.org/2000/svg}circle") if c.get("fill") == "#7a7a7a"]
+    assert len(gris) == sum(1 for *_, diam, _ in [(0, 0, d[2], 0) for d in des.domes]
+                            if diam == D.point_diametre)
+    noirs = [c for c in racine.iter("{http://www.w3.org/2000/svg}path") if c.get("fill") == "#000"]
+    assert noirs
+    legende = resume["legende"].read_text(encoding="utf-8")
+    assert f"]({resume['svg'][0].name})" in legende and "![Plan 1, niveau" in legende
+
+
+def test_plan_visuel_numerote_les_reperes_et_montre_les_rampes(tmp_path):
+    from audit_ifc_rgaa import auditer
+    m = piece(porte_largeur=0.70)
+    m.rampe_dessinee([(6.0, 0.30)], largeur=1.40, angle_deg=0.0)
+    chemin = tmp_path / "m.ifc"
+    m.model.write(str(chemin))
+    resume = pt.generer_plan(str(chemin), tmp_path / "plan", rapport=auditer(str(chemin), referentiel("neuf")))
+    racine = _svg(resume["svg"][0])
+    textes = [t.text for t in racine.iter("{http://www.w3.org/2000/svg}text")]
+    poses = [n for n, *_ in resume["pages"][0][1].positions_reperes]
+    assert poses and sorted(str(n) for n in poses) == sorted(t for t in textes if t in {str(n) for n in poses})
+    gris_clair = [c for c in racine.iter("{http://www.w3.org/2000/svg}path") if c.get("fill") == "#c8c8c8"]
+    assert gris_clair  # la rampe
+
+
+def test_plan_visuel_ecrit_les_numeros_en_braille_seul():
+    from plan_visuel import dessin_en_svg
+    des = pt.Dessin(60.0, 40.0)
+    pt.poser_etiquette(des, "12", "braille", 10.0, 30.0, D)
+    des.etiquettes_braille.append((12, 10.0, 30.0, *pt.taille_braille("12", D)))
+    assert ">12</text>" in dessin_en_svg(des, D, "essai", "essai")

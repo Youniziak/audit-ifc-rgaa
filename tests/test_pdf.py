@@ -165,3 +165,31 @@ def test_ligne_de_commande(tmp_path):
     assert resultat.returncode == 0, resultat.stderr
     assert (tmp_path / "rapport.pdf").exists()
     assert "PDF accessible :" in resultat.stdout
+
+
+def test_seules_les_images_de_l_outil_entrent_dans_le_pdf(tmp_path):
+    """Une image SVG fournie par l'outil devient une figure balisée avec son
+    texte de remplacement ; une image demandée par le texte (fichier local, ou
+    nom que l'outil n'a pas fourni) est refusée."""
+    secret = tmp_path / "secret.svg"
+    secret.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">'
+                      '<text y="9">NE PAS DIVULGUER</text></svg>', encoding="utf-8")
+    plan = ('<svg xmlns="http://www.w3.org/2000/svg" width="40mm" height="20mm" viewBox="0 0 40 20">'
+            '<rect x="2" y="2" width="30" height="3" fill="black"/></svg>').encode()
+    texte = ("# Plan\n\n![Plan 1 : murs en noir](plan1.svg)\n\n"
+             f"![piège](file://{secret})\n\n![autre](secret.svg)\n")
+    chemin = exporter_pdf(texte, tmp_path / "plan.pdf", images={"plan1.svg": plan})
+    assert b"NE PAS DIVULGUER" not in chemin.read_bytes()
+    with pikepdf.open(chemin) as pdf_plan:
+        figures = []
+
+        def parcourir(noeud):
+            if noeud.get("/S") == "/Figure":
+                figures.append(str(noeud.get("/Alt")))
+            enfants = noeud.get("/K")
+            for enfant in (enfants if isinstance(enfants, pikepdf.Array) else [enfants]):
+                if isinstance(enfant, pikepdf.Dictionary):
+                    parcourir(enfant)
+        parcourir(pdf_plan.Root.StructTreeRoot)
+    # Les images refusées ne laissent que leur texte de remplacement.
+    assert figures[0] == "Plan 1 : murs en noir"

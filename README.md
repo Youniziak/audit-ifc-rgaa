@@ -215,6 +215,14 @@ direction of every stair and ramp, and says what could not fit on the plate
 at that scale (a stair too small, a dome with no room left, a door without
 its triangle).
 
+Each plate also gets a **visual plan** (`.svg` file, next to the `.stl`): the
+same plate drawn black on white, which can be enlarged without blur
+(ZoomText, magnifier, browser). Walls in black, low walls in grey, room
+numbers in digits, braille as grey dots, audit markers numbered as in the
+key, arrows on ramps pointing uphill. The sighted and the blind reader share
+the same plan. The key shows these plans, and so does the `--pdf` PDF, with
+alternative text.
+
 - `--neuf` or `--existant`: also runs the audit and marks every
   non-compliant element with a raised dome; the key lists the findings.
 - `--echelle 100`: forces the scale; a level that is too large is split
@@ -286,7 +294,7 @@ audit-ifc-rgaa/
 ├── README.md                    This document (English)
 ├── README.fr.md                 French version
 ├── CHANGELOG.md                 Version log
-├── VERSION                      Current version (0.6.1)
+├── VERSION                      Current version (0.7.0)
 ├── REFERENTIEL.md               Applied thresholds, article by article, with sources
 ├── PLAN_TACTILE.md              Tactile plan: dimensions, sources, choices to validate
 ├── PLANS_EXISTANTS.md           Planned method for reading a plan without a model (v0.8)
@@ -301,6 +309,7 @@ audit-ifc-rgaa/
 ├── bcf_export.py                BCF 2.1 file generation
 ├── pdf_accessible.py            Tagged PDF report (PDF/UA-1)
 ├── plan_tactile.py              Raised tactile plan (STL) and key
+├── plan_visuel.py               Visual plan of each plate (SVG)
 ├── generer_exemple_espaces.py   Test IFC generation helper
 │
 ├── tests/                       Tests (python3 -m pytest tests/)
@@ -350,7 +359,7 @@ Standards used:
 - [x] v0.4.3 — Stair width, step measurements from geometry
 - [x] v0.5 — Accessible PDF export (tagged PDF/UA-1, checked with veraPDF)
 - [x] v0.6 — Raised tactile floor plans for 3D printing (STL), with a key and the audit's findings
-- [ ] v0.7 — Visual floor plans from the model (high contrast, zoomable, same numbers as the tactile plan)
+- [x] v0.7 — Visual plans: each plate drawn as a black-on-white SVG, zoomable, with the same numbers (also in the PDF key)
 - [ ] v0.8 — Reading existing plans: vector PDF and DXF first, then scanned plans and photos, redrawn as an IFC model after rescaling on a known dimension; measurements to be confirmed on site (field comparison). Method: [PLANS_EXISTANTS.md](PLANS_EXISTANTS.md) (French)
 - [ ] v1.0 — IndoorGML graphs for accessible indoor guidance
 - [ ] v1.x — First published hardware prototype (tactile ruler)
